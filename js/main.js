@@ -100,8 +100,65 @@ W.Game = (function() {
     document.getElementById('bag-panel').classList.add('open');
   }
 
+  var _btnA = null;
+  var _btnMode = '';
+  var _btnTimer = 0;
+
+  function nearestMobDist() {
+    var P = W.Player, best = 1e9;
+    var i, m, dx, dy, d2, n = W.Mobs.count();
+    for (i = 0; i < n; i++) {
+      m = W.Mobs.at(i);
+      if (!m || !m.alive) continue;
+      dx = m.wx - P.wx;
+      dy = m.wy - P.wy;
+      d2 = dx * dx + dy * dy;
+      if (d2 < best) best = d2;
+    }
+    return Math.sqrt(best);
+  }
+
+  function updateActionBtn(dt) {
+    if (!_btnA) return;
+    _btnTimer += dt;
+    if (_btnTimer < 0.2) return;
+    _btnTimer = 0;
+
+    var mode, icon;
+    var P = W.Player;
+
+    if (nearestMobDist() <= W.CFG.ATTACK_RANGE) {
+      mode = 'atk';
+      icon = '\u2694\uFE0F';
+    } else if (W.Res.findTarget(P.wx, P.wy, P.faceX, P.faceY)) {
+      mode = 'harvest';
+      icon = '\uD83E\uDE93';
+    } else {
+      mode = 'none';
+      icon = '\uD83D\uDC4A';
+    }
+
+    if (mode === _btnMode) return;
+    _btnMode = mode;
+    _btnA.textContent = icon;
+    _btnA.style.opacity = (mode === 'none') ? '0.35' : '1';
+    _btnA.style.transform = (mode === 'none') ? 'scale(1)' : 'scale(1.12)';
+  }
+
+  /* 自動存檔的輕提示：save.js 是紅線區不能動，因此在這裡自行計時 */
+  var _asNote = 0;
+
+  function noteAutosave(dt) {
+    _asNote += dt;
+    if (_asNote < W.CFG.AUTOSAVE_INTERVAL) return;
+    _asNote = 0;
+    showToast('\u25CB \u81ea\u52d5\u5b58\u6a94');
+  }
+
   function doAction() {
     if (W.Stats.isDead()) return;
+    /* 揮空也要出弧光，這是手感的關鍵 */
+    W.Render.slash(W.Player.faceX, W.Player.faceY);
     var a = W.Player.attack();
     if (a === 'tired') { showToast('\u9ad4\u529b\u4e0d\u8db3'); return; }
     if (a) {
@@ -196,8 +253,10 @@ W.Game = (function() {
     W.Save.tick(dt);
     W.Cloud.tick(dt);
     W.Camera.follow(W.Player.wx, W.Player.wy, dt);
-    W.Render.draw();
+    W.Render.draw(dt);
     updateHUD(dt);
+    updateActionBtn(dt);
+    noteAutosave(dt);
 
     requestAnimationFrame(loop);
   }
@@ -295,6 +354,7 @@ W.Game = (function() {
     elChunk = document.getElementById('hud-chunk');
     elFps   = document.getElementById('hud-fps');
     elToast = document.getElementById('toast');
+    _btnA   = document.getElementById('btn-a');
     elHp    = document.getElementById('bar-hp');
     elFood  = document.getElementById('bar-food');
     elStam  = document.getElementById('bar-stam');
@@ -328,6 +388,11 @@ W.Game = (function() {
     document.getElementById('btn-c').addEventListener('click', openBag);
 
     document.getElementById('btn-d').addEventListener('click', openCraft);
+
+    document.getElementById('gc-close').addEventListener('click', function() {
+      document.getElementById('goal-card').classList.remove('open');
+      try { window.localStorage.setItem('wilds:goalSeen', '1'); } catch (e) {}
+    });
 
     document.getElementById('craft-close').addEventListener('click', closeCraft);
 
@@ -379,14 +444,14 @@ W.Game = (function() {
 
     document.getElementById('btn-save').addEventListener('click', function() {
       W.Save.save().then(function(r) {
-        showToast(r ? '\u5df2\u5b58\u6a94' : '\u5b58\u6a94\u5931\u6557');
+        showToast(r ? '\u5df2\u5b58\u6a94 \u2713' : '\u5b58\u6a94\u5931\u6557');
       });
     });
 
     document.getElementById('btn-load').addEventListener('click', function() {
       W.Save.load().then(function(r) {
         if (r) { W.Camera.snapTo(W.Player.wx, W.Player.wy); }
-        showToast(r ? '\u5df2\u8b80\u53d6\u5b58\u6a94' : '\u627e\u4e0d\u5230\u5b58\u6a94');
+        showToast(r ? '\u5b58\u6a94\u5df2\u8b80\u53d6 \u2713' : '\u627e\u4e0d\u5230\u5b58\u6a94');
       });
     });
 
@@ -423,6 +488,10 @@ W.Game = (function() {
       if (!loaded) W.Player.spawn();
       W.Camera.snapTo(W.Player.wx, W.Player.wy);
       showToast(loaded ? '\u5df2\u8b80\u53d6\u5b58\u6a94' : '\u65b0\u7684\u65c5\u7a0b\u958b\u59cb');
+      var seenGoal = false;
+      try { seenGoal = window.localStorage.getItem('wilds:goalSeen') === '1'; } catch (e) {}
+      if (!seenGoal) { document.getElementById('goal-card').classList.add('open'); }
+
       last = performance.now();
       requestAnimationFrame(loop);
     });
