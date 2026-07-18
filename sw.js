@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'wilds-v9';
+var CACHE_VERSION = 'wilds-v10';
 
 var ASSETS = [
   './index.html',
@@ -23,6 +23,23 @@ var ASSETS = [
   './js/player.js',
   './js/render.js',
   './js/main.js',
+  './js/art.js',
+  './assets/tree.png',
+  './assets/tree_cut.png',
+  './assets/rock.png',
+  './assets/rock_mined.png',
+  './assets/grass.png',
+  './assets/grass_cut.png',
+  './assets/berry.png',
+  './assets/berry_empty.png',
+  './assets/deer.png',
+  './assets/deer_walk.png',
+  './assets/rabbit.png',
+  './assets/rabbit_hop.png',
+  './assets/wolf.png',
+  './assets/wolf_run.png',
+  './assets/campfire.png',
+  './assets/bed.png',
   './assets/player.png'
 ];
 
