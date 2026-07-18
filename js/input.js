@@ -7,6 +7,24 @@ W.Input = (function() {
   var keys = {};
   var elBase = null, elKnob = null;
 
+  /* iOS 上對 touchstart 呼叫 preventDefault 會抑制後續的 click 事件，
+     導致所有按鈕失效（滑鼠不受影響，所以電腦上測不出來）。
+     點在 UI 元素上時 input.js 完全不介入，讓 click 正常送達。
+     不用 closest()，手刻迴圈相容性最穩。 */
+  function isUiTarget(t) {
+    while (t && t !== document.body) {
+      if (t.tagName === 'BUTTON') return true;
+      if (t.id && (
+        t.id === 'actions' ||
+        t.id === 'goal-card' ||
+        t.id === 'btn-diag' ||
+        t.id.indexOf('-panel') >= 0
+      )) return true;
+      t = t.parentNode;
+    }
+    return false;
+  }
+
   function setVec(dx, dy) {
     var len = Math.sqrt(dx * dx + dy * dy);
     if (len > 1) { dx /= len; dy /= len; len = 1; }
@@ -35,6 +53,7 @@ W.Input = (function() {
   }
 
   function onStart(e) {
+    if (isUiTarget(e.target)) return;
     var i, t;
     for (i = 0; i < e.changedTouches.length; i++) {
       t = e.changedTouches[i];
@@ -50,6 +69,7 @@ W.Input = (function() {
   }
 
   function onMove(e) {
+    if (isUiTarget(e.target)) return;
     var i, t, dx, dy;
     for (i = 0; i < e.changedTouches.length; i++) {
       t = e.changedTouches[i];
@@ -64,6 +84,7 @@ W.Input = (function() {
   }
 
   function onEnd(e) {
+    if (isUiTarget(e.target)) return;
     var i, t;
     for (i = 0; i < e.changedTouches.length; i++) {
       t = e.changedTouches[i];
@@ -81,6 +102,7 @@ W.Input = (function() {
   var mouseDown = false;
 
   function onMouseDown(e) {
+    if (isUiTarget(e.target)) return;
     if (e.clientX < window.innerWidth * W.CFG.JOY_ZONE) {
       mouseDown = true;
       ox = e.clientX; oy = e.clientY;
