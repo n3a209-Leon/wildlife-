@@ -54,6 +54,7 @@ html, body {
   font-size:26px; line-height:1;
   display:flex; align-items:center; justify-content:center;
 }
+.act-btn { transition: opacity .18s, transform .18s; }
 .act-btn:active { background:rgba(255,255,255,.22); }
 
 #btn-diag {
@@ -176,4 +177,23 @@ html, body {
   margin-top:10px; height:50px; border-radius:12px;
   border:1px solid rgba(255,255,255,.2);
   background:rgba(90,110,180,.28); color:#dce6ff; font-size:15px;
+}
+
+#goal-card {
+  position:absolute; z-index:9000;
+  left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(320px, 84vw);
+  background:rgba(18,24,14,.95);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:16px;
+  padding:22px 20px calc(18px + env(safe-area-inset-bottom)) 20px;
+  display:none;
+}
+#goal-card.open { display:block; }
+.gc-title { color:#ffe89a; font-size:19px; font-weight:700; margin-bottom:14px; text-align:center; }
+.gc-line  { color:#dfe6d5; font-size:14px; line-height:1.55; margin-bottom:10px; }
+#gc-close {
+  width:100%; height:52px; margin-top:8px;
+  border:none; border-radius:12px;
+  background:#3d5c2e; color:#fff; font-size:16px; font-weight:600;
 }
