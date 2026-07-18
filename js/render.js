@@ -18,6 +18,34 @@ W.Render = (function() {
   }
   var _pulse = 0;
 
+  var NODE_ART      = ['tree', 'rock', 'grass', 'berry', ''];
+  var NODE_ART_DEAD = ['tree_cut', 'rock_mined', 'grass_cut', 'berry_empty', ''];
+  var MOB_ART       = ['deer', 'rabbit', 'wolf'];
+  var MOB_ART_MOVE  = ['deer_walk', 'rabbit_hop', 'wolf_run'];
+  var artT = 0;
+
+  /* 統一的素材繪製：以腳底（sx, sy）為錨點，等比例縮放到指定世界高度 */
+  function drawArt(img, sx, sy, hWorld, flip) {
+    var h = hWorld * W.Camera.zoom;
+    var w = h * (img.width / img.height);
+    if (flip) {
+      ctx.save();
+      ctx.translate(sx, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, -w / 2, sy - h, w, h);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, sx - w / 2, sy - h, w, h);
+    }
+  }
+
+  function shadow(sx, sy, rx, ry) {
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function loadSprite() {
     sprite = new Image();
     sprite.onload = function() { spriteReady = true; };
@@ -28,6 +56,7 @@ W.Render = (function() {
   function init(context) {
     ctx = context;
     loadSprite();
+    W.Art.load();
   }
 
   function drawGrid() {
@@ -123,8 +152,18 @@ W.Render = (function() {
     ctx.strokeRect(_p.sx, _p.sy, S * C.zoom, S * C.zoom);
   }
 
-  function drawOneNode(nd, sx, sy) {
+  function drawOneNode(nd, sx, sy, alive) {
     var ty = nd.type;
+    var z = W.Camera.zoom;
+    var img = W.Art.get(alive ? NODE_ART[ty] : NODE_ART_DEAD[ty]);
+
+    if (img) {
+      shadow(sx + 1, sy + 3, 11 * z, 4.5 * z);
+      drawArt(img, sx, sy + 4 * z, alive ? W.CFG.ART_NODE_H[ty] : W.CFG.ART_NODE_DEAD_H[ty], false);
+      return;
+    }
+
+    if (!alive) return;
 
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
@@ -184,7 +223,7 @@ W.Render = (function() {
     var r1 = Math.floor(C.viewBottom() / K);
     var now = Date.now();
     var py = W.Player.wy;
-    var cx, cy, a, i, nd;
+    var cx, cy, a, i, nd, alive;
 
     for (cy = r0; cy <= r1; cy++) {
       for (cx = c0; cx <= c1; cx++) {
@@ -192,10 +231,10 @@ W.Render = (function() {
         for (i = 0; i < a.length; i++) {
           nd = a[i];
           if (before ? (nd.wy >= py) : (nd.wy < py)) continue;
-          if (!W.Res.isAlive(nd, now)) continue;
+          alive = W.Res.isAlive(nd, now);
           W.Camera.worldToScreenInto(nd.wx, nd.wy, _p);
           if (_p.sx < -40 || _p.sy < -60 || _p.sx > C.vw + 40 || _p.sy > C.vh + 40) continue;
-          drawOneNode(nd, _p.sx, _p.sy);
+          drawOneNode(nd, _p.sx, _p.sy, alive);
         }
       }
     }
@@ -238,6 +277,22 @@ W.Render = (function() {
 
   function drawOneMob(m, sx, sy) {
     var ty = m.type;
+    var z = W.Camera.zoom;
+    var moving = (m.vx * m.vx + m.vy * m.vy) > 0.02;
+    var img = W.Art.get(moving && (Math.floor(artT * W.CFG.MOB_ANIM_FPS + m.seed) % 2 === 1)
+      ? MOB_ART_MOVE[ty] : MOB_ART[ty]);
+
+    if (img) {
+      shadow(sx, sy + 4 * z, 11 * z, 4 * z);
+      drawArt(img, sx, sy + 5 * z, W.CFG.ART_MOB_H[ty], m.vx < -0.05);
+      if (m.hurt > 2.6) {
+        ctx.fillStyle = 'rgba(230,80,60,0.35)';
+        ctx.beginPath();
+        ctx.arc(sx, sy - 8 * z, 15 * z, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
     var body, head, r;
 
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -291,6 +346,16 @@ W.Render = (function() {
 
   function drawOneBuild(s, sx, sy, now) {
     var ty = s.type, f;
+    var z = W.Camera.zoom;
+    var aimg = null;
+    if (ty === 0) aimg = W.Art.get('campfire');
+    else if (ty === 2) aimg = W.Art.get('bed');
+
+    if (aimg) {
+      shadow(sx, sy + 4 * z, 13 * z, 5 * z);
+      drawArt(aimg, sx, sy + 6 * z, (ty === 0) ? W.CFG.ART_FIRE_H : W.CFG.ART_BED_H, false);
+      return;
+    }
 
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
@@ -507,6 +572,7 @@ W.Render = (function() {
 
 
   function draw(dt) {
+    artT += dt;
     ctx.fillStyle = '#2c3a22';
     ctx.fillRect(0, 0, W.Camera.vw, W.Camera.vh);
     drawChunks();
