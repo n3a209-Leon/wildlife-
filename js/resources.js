@@ -219,6 +219,7 @@ W.Res = (function() {
     exportTaken: exportTaken,
     importTaken: importTaken,
     clearTaken: clearTaken,
+    nameOf: function(t) { return NAMES[t] || ''; },
     nearCount: nearCount,
     nearAt: nearAt,
     stats: stats
