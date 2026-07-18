@@ -1,0 +1,10 @@
+{
+  "name": "Wilds",
+  "short_name": "Wilds",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1f16",
+  "theme_color": "#1a1f16",
+  "icons": []
+}
