@@ -8,6 +8,13 @@ W.CFG = {
   PLAYER_SPEED: 240,
   PLAYER_RADIUS: 13,
 
+  SPRITE_URL: 'assets/player.png',
+  SPRITE_CELL: 128,
+  SPRITE_COLS: 5,
+  SPRITE_FOOT: 3,
+  SPRITE_H: 72,
+  WALK_FPS: 8,
+
   MAX_DPR: 2,
   CAM_LERP: 9,
 
