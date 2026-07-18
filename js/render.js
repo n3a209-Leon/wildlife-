@@ -5,9 +5,29 @@ W.Render = (function() {
   var _p = { sx: 0, sy: 0 };
   var nightCv = null, nightCtx = null, nightW = 0, nightH = 0;
   var lightCv = null;
+  var sprite = null;
+  var spriteReady = false;
+  var walkT = 0;
+  var slashT = 0;
+  var slashFx = 0, slashFy = 1;
+
+  function slash(fx, fy) {
+    slashT = 0.16;
+    slashFx = fx;
+    slashFy = fy;
+  }
+  var _pulse = 0;
+
+  function loadSprite() {
+    sprite = new Image();
+    sprite.onload = function() { spriteReady = true; };
+    sprite.onerror = function() { spriteReady = false; };
+    sprite.src = W.CFG.SPRITE_URL;
+  }
 
   function init(context) {
     ctx = context;
+    loadSprite();
   }
 
   function drawGrid() {
@@ -181,17 +201,40 @@ W.Render = (function() {
     }
   }
 
-  function drawTarget() {
+  function drawTarget(dt) {
+    _pulse += dt * 3;
     var P = W.Player;
     var nd = W.Res.findTarget(P.wx, P.wy, P.faceX, P.faceY);
     if (!nd) return;
     W.Camera.worldToScreenInto(nd.wx, nd.wy, _p);
-    ctx.strokeStyle = 'rgba(255,235,150,0.85)';
+    var z = W.Camera.zoom;
+    var k = 1 + Math.sin(_pulse) * 0.12;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(_p.sx, _p.sy + 4 * z, 26 * z * k, 12 * z * k, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,215,90,0.95)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(_p.sx, _p.sy + 3, 15, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(_p.sx, _p.sy + 4 * z, 26 * z * k, 12 * z * k, 0, 0, Math.PI * 2);
     ctx.stroke();
+
+    var name = (W.Res.nameOf ? W.Res.nameOf(nd.type) : '');
+    if (name) {
+      ctx.font = 'bold ' + Math.round(13 * z) + 'px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(name, _p.sx, _p.sy - 52 * z);
+      ctx.fillStyle = '#ffe89a';
+      ctx.fillText(name, _p.sx, _p.sy - 52 * z);
+    }
   }
+
 
   function drawOneMob(m, sx, sy) {
     var ty = m.type;
@@ -383,34 +426,87 @@ W.Render = (function() {
     ctx.globalAlpha = 1;
   }
 
-  function drawPlayer() {
+  function drawPlayer(dt) {
     var P = W.Player;
     W.Camera.worldToScreenInto(P.wx, P.wy, _p);
-    var r = W.CFG.PLAYER_RADIUS * W.Camera.zoom;
+    var z = W.Camera.zoom;
+    var r = W.CFG.PLAYER_RADIUS * z;
 
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(_p.sx, _p.sy + r * 0.7, r * 0.9, r * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(_p.sx, _p.sy + r * 0.7, r * 0.95, r * 0.42, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#e8d9a8';
+    if (!spriteReady) { drawPlayerFallback(_p.sx, _p.sy, r, P); return; }
+
+    if (P.moving) { walkT += dt; } else { walkT = 0; }
+
+    var row, flip = false;
+    if (Math.abs(P.faceY) >= Math.abs(P.faceX)) {
+      row = (P.faceY >= 0) ? 0 : 1;
+    } else {
+      row = 2;
+      flip = (P.faceX < 0);
+    }
+
+    var col = P.moving ? (1 + (Math.floor(walkT * W.CFG.WALK_FPS) % 4)) : 0;
+
+    var C = W.CFG.SPRITE_CELL;
+    var h = W.CFG.SPRITE_H * z;
+    var w = h;
+    var dx = _p.sx - w / 2;
+    var dy = _p.sy + r * 0.7 - h + (W.CFG.SPRITE_FOOT / C) * h;
+
+    if (flip) {
+      ctx.save();
+      ctx.translate(_p.sx, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(sprite, col * C, row * C, C, C, -w / 2, dy, w, h);
+      ctx.restore();
+    } else {
+      ctx.drawImage(sprite, col * C, row * C, C, C, dx, dy, w, h);
+    }
+  }
+
+  function drawSlash(dt) {
+    if (slashT <= 0) return;
+    slashT -= dt;
+    var P = W.Player;
+    W.Camera.worldToScreenInto(P.wx, P.wy, _p);
+    var z = W.Camera.zoom;
+    var ang = Math.atan2(slashFy, slashFx);
+    var k = slashT / 0.16;
+    if (k < 0) k = 0;
+
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * k) + ')';
+    ctx.lineWidth = 5 * z;
     ctx.beginPath();
-    ctx.arc(_p.sx, _p.sy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#3a2f1c';
-    ctx.lineWidth = 2;
+    ctx.arc(_p.sx, _p.sy, 34 * z, ang - 0.9, ang + 0.9);
     ctx.stroke();
 
-    ctx.strokeStyle = '#3a2f1c';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,215,90,' + (0.6 * k) + ')';
+    ctx.lineWidth = 2 * z;
     ctx.beginPath();
-    ctx.moveTo(_p.sx, _p.sy);
-    ctx.lineTo(_p.sx + P.faceX * r * 1.5, _p.sy + P.faceY * r * 1.5);
+    ctx.arc(_p.sx, _p.sy, 38 * z, ang - 0.7, ang + 0.7);
     ctx.stroke();
   }
 
-  function draw() {
+  function drawPlayerFallback(sx, sy, r, P) {
+    ctx.fillStyle = '#e8d9a8';
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#3a2f1c';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + P.faceX * r * 1.5, sy + P.faceY * r * 1.5);
+    ctx.stroke();
+  }
+
+
+  function draw(dt) {
     ctx.fillStyle = '#2c3a22';
     ctx.fillRect(0, 0, W.Camera.vw, W.Camera.vh);
     drawChunks();
@@ -420,12 +516,13 @@ W.Render = (function() {
       drawChunkLabels();
     }
     drawWorldBorder();
-    drawTarget();
+    drawTarget(dt);
     drawPlaceGhost();
     drawBuilds(true);
     drawNodes(true);
     drawMobs(true);
-    drawPlayer();
+    drawPlayer(dt);
+    drawSlash(dt);
     drawMobs(false);
     drawNodes(false);
     drawBuilds(false);
@@ -434,5 +531,5 @@ W.Render = (function() {
     W.Minimap.draw(ctx, W.Camera.vw);
   }
 
-  return { init: init, draw: draw };
+  return { init: init, draw: draw, slash: slash };
 })();
