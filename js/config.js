@@ -15,6 +15,14 @@ W.CFG = {
   SPRITE_H: 72,
   WALK_FPS: 8,
 
+  ART_DIR: 'assets/',
+  ART_NODE_H:      [66, 44, 32, 36, 0],
+  ART_NODE_DEAD_H: [30, 30, 20, 32, 0],
+  ART_MOB_H:       [46, 28, 44],
+  ART_FIRE_H: 46,
+  ART_BED_H: 34,
+  MOB_ANIM_FPS: 5,
+
   MAX_DPR: 2,
   CAM_LERP: 9,
 
