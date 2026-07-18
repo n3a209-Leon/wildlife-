@@ -268,6 +268,7 @@ W.Game = (function() {
     var ms = W.Mobs.stats();
     var bs = W.Build.stats();
     var cl = W.Cloud.info();
+    var ar = W.Art.stats();
     return [
       '=== WILDS 診斷 (Phase 1) ===',
       '',
@@ -332,6 +333,8 @@ W.Game = (function() {
       '\u9ed1\u6697\u5ea6       : ' + W.Time.darkness().toFixed(2),
       '\u591c\u665a\u6a21\u5f0f     : ' + W.Time.isNight(),
       '\u4e00\u65e5\u9577\u5ea6     : ' + W.CFG.DAY_LENGTH + ' \u79d2',
+      '',
+      '\u7d20\u6750\u8f09\u5165     : ' + ar.loaded + ' / ' + ar.total + '\uff08\u5931\u6557 ' + ar.failed + '\uff09',
       '',
       '--- \u96f2\u7aef (Phase 8) ---',
       '\u96f2\u7aef\u72c0\u614b     : ' + cl.reason,
