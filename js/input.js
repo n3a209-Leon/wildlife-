@@ -1,0 +1,142 @@
+window.W = window.W || {};
+
+W.Input = (function() {
+  var moveX = 0, moveY = 0;
+  var joyOn = false, joyId = null;
+  var ox = 0, oy = 0;
+  var keys = {};
+  var elBase = null, elKnob = null;
+
+  function setVec(dx, dy) {
+    var len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 1) { dx /= len; dy /= len; len = 1; }
+    if (len < W.CFG.JOY_DEADZONE) { dx = 0; dy = 0; }
+    moveX = dx;
+    moveY = dy;
+  }
+
+  function showJoy(px, py) {
+    elBase.style.display = 'block';
+    elBase.style.left = (px - 60) + 'px';
+    elBase.style.top  = (py - 60) + 'px';
+    elKnob.style.left = '34px';
+    elKnob.style.top  = '34px';
+  }
+
+  function moveKnob(dx, dy) {
+    var len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 1) { dx /= len; dy /= len; }
+    elKnob.style.left = (34 + dx * W.CFG.JOY_RADIUS * 0.6) + 'px';
+    elKnob.style.top  = (34 + dy * W.CFG.JOY_RADIUS * 0.6) + 'px';
+  }
+
+  function hideJoy() {
+    elBase.style.display = 'none';
+  }
+
+  function onStart(e) {
+    var i, t;
+    for (i = 0; i < e.changedTouches.length; i++) {
+      t = e.changedTouches[i];
+      if (!joyOn && t.clientX < window.innerWidth * W.CFG.JOY_ZONE) {
+        joyOn = true;
+        joyId = t.identifier;
+        ox = t.clientX;
+        oy = t.clientY;
+        showJoy(ox, oy);
+      }
+    }
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    var i, t, dx, dy;
+    for (i = 0; i < e.changedTouches.length; i++) {
+      t = e.changedTouches[i];
+      if (joyOn && t.identifier === joyId) {
+        dx = (t.clientX - ox) / W.CFG.JOY_RADIUS;
+        dy = (t.clientY - oy) / W.CFG.JOY_RADIUS;
+        setVec(dx, dy);
+        moveKnob(dx, dy);
+      }
+    }
+    e.preventDefault();
+  }
+
+  function onEnd(e) {
+    var i, t;
+    for (i = 0; i < e.changedTouches.length; i++) {
+      t = e.changedTouches[i];
+      if (joyOn && t.identifier === joyId) {
+        joyOn = false;
+        joyId = null;
+        moveX = 0;
+        moveY = 0;
+        hideJoy();
+      }
+    }
+    e.preventDefault();
+  }
+
+  var mouseDown = false;
+
+  function onMouseDown(e) {
+    if (e.clientX < window.innerWidth * W.CFG.JOY_ZONE) {
+      mouseDown = true;
+      ox = e.clientX; oy = e.clientY;
+      showJoy(ox, oy);
+    }
+  }
+
+  function onMouseMove(e) {
+    if (!mouseDown) return;
+    var dx = (e.clientX - ox) / W.CFG.JOY_RADIUS;
+    var dy = (e.clientY - oy) / W.CFG.JOY_RADIUS;
+    setVec(dx, dy);
+    moveKnob(dx, dy);
+  }
+
+  function onMouseUp() {
+    if (!mouseDown) return;
+    mouseDown = false;
+    moveX = 0; moveY = 0;
+    hideJoy();
+  }
+
+  function readKeys() {
+    if (joyOn || mouseDown) return;
+    var dx = 0, dy = 0;
+    if (keys['a'] || keys['arrowleft'])  dx -= 1;
+    if (keys['d'] || keys['arrowright']) dx += 1;
+    if (keys['w'] || keys['arrowup'])    dy -= 1;
+    if (keys['s'] || keys['arrowdown'])  dy += 1;
+    if (dx === 0 && dy === 0) { moveX = 0; moveY = 0; return; }
+    var len = Math.sqrt(dx * dx + dy * dy);
+    moveX = dx / len;
+    moveY = dy / len;
+  }
+
+  function init() {
+    elBase = document.getElementById('joy-base');
+    elKnob = document.getElementById('joy-knob');
+    var opt = { passive: false };
+    window.addEventListener('touchstart',  onStart, opt);
+    window.addEventListener('touchmove',   onMove,  opt);
+    window.addEventListener('touchend',    onEnd,   opt);
+    window.addEventListener('touchcancel', onEnd,   opt);
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup',   onMouseUp);
+    window.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup',   function(e) { keys[e.key.toLowerCase()] = false; });
+    document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+  }
+
+  return {
+    init: init,
+    update: readKeys,
+    getX: function() { return moveX; },
+    getY: function() { return moveY; },
+    isActive: function() { return joyOn || mouseDown; }
+  };
+})();
