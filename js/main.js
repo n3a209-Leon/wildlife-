@@ -594,7 +594,32 @@ W.Game = (function() {
     }
   }
 
+  /* 啟動前先點名，缺哪一支就直接說哪一支。
+     少了核心模組會噴出一連串看不懂的 TypeError，
+     不如一次講清楚要補傳什麼檔案。 */
+  var REQUIRED = [
+    ['CFG', 'config.js'], ['Rng', 'rng.js'], ['World', 'world.js'],
+    ['Inv', 'inventory.js'], ['Res', 'resources.js'], ['Build', 'build.js'],
+    ['Craft', 'craft.js'], ['Time', 'time.js'], ['Camera', 'camera.js'],
+    ['Input', 'input.js'], ['Player', 'player.js'], ['Render', 'render.js'],
+    ['Save', 'save.js'], ['Stats', 'stats.js'], ['Mobs', 'mobs.js'],
+    ['Arrows', 'arrows.js'], ['Minimap', 'minimap.js'], ['Art', 'art.js'],
+    ['Cloud', 'cloud.js'], ['Sfx', 'sfx.js'], ['Sites', 'sites.js']
+  ];
+
+  function checkModules() {
+    var miss = [], i;
+    for (i = 0; i < REQUIRED.length; i++) {
+      if (!W[REQUIRED[i][0]]) miss.push(REQUIRED[i][1]);
+    }
+    if (miss.length && window.__wildsErr) {
+      window.__wildsErr('\u2717 \u7f3a\u5c11 ' + miss.length + ' \u652f\u6a21\u7d44\uff0c\u8acb\u4e0a\u50b3\u9019\u4e9b\u6a94\u6848\u5230 js/ \u8cc7\u6599\u593e\uff1a\n   ' + miss.join('\n   '));
+    }
+    return miss.length;
+  }
+
   function init() {
+    checkModules();
     try {
       initInner();
     } catch (e) {
