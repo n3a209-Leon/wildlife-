@@ -24,6 +24,7 @@ W.Cloud = (function() {
   var db = null;
   var auth = null;
   var chain = Promise.resolve();
+  var onState = null;
 
   /* 所有雲端動作排進同一條佇列，避免自動同步與手動按鈕互相打架。
      用拒絕（busy）擋掉使用者操作體驗很差，排隊等前一個做完才是對的。 */
@@ -49,6 +50,7 @@ W.Cloud = (function() {
         email = (u && u.email) ? u.email : '';
         if (uid) { reason = '\u5df2\u767b\u5165'; syncNow(); }
         else { reason = '\u672a\u767b\u5165'; }
+        if (onState) onState(!!uid);
       });
       ready = true;
       reason = '\u5df2\u521d\u59cb\u5316';
@@ -206,6 +208,7 @@ W.Cloud = (function() {
 
   return {
     init: init,
+    setOnState: function(fn) { onState = fn; },
     signIn: signIn,
     signOut: signOut,
     upload: upload,
