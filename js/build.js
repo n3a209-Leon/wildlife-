@@ -4,9 +4,9 @@ window.W = window.W || {};
    新增欄位時務必同步 save.js 的 collect / apply / migrate 三處。 */
 W.Build = (function() {
 
-  var TYPE = { FIRE: 0, WALL: 1, BED: 2, FURNACE: 3 };
-  var NAMES = ['\u71df\u706b', '\u6728\u7246', '\u7761\u888b', '\u7194\u7210'];
-  var BLOCKR = [0, 16, 0, 14];
+  var TYPE = { FIRE: 0, WALL: 1, BED: 2, FURNACE: 3, BENCH: 4, STORE: 5, FENCE: 6, RACK: 7 };
+  var NAMES = ['\u71df\u706b', '\u6728\u7246', '\u7761\u888b', '\u7194\u7210', '\u5de5\u4f5c\u53f0', '\u5132\u7269\u7bb1', '\u6805\u6b04', '\u66ec\u8089\u67b6'];
+  var BLOCKR = [0, 16, 0, 14, 14, 12, 14, 0];
 
   var list = [];
   var _near = [];
@@ -113,7 +113,7 @@ W.Build = (function() {
       if (!r || r.length < 3) continue;
       if (typeof r[1] !== 'number' || typeof r[2] !== 'number') continue;
       if (!isFinite(r[1]) || !isFinite(r[2])) continue;
-      if (r[0] < 0 || r[0] > 3) continue;
+      if (r[0] < 0 || r[0] > 7) continue;
       add(r[0], r[1], r[2]);
     }
   }
@@ -121,9 +121,9 @@ W.Build = (function() {
   function clear() { list = []; _nearN = 0; }
 
   function stats() {
-    var i, c = [0, 0, 0, 0];
+    var i, c = [0, 0, 0, 0, 0, 0, 0, 0];
     for (i = 0; i < list.length; i++) c[list[i].type]++;
-    return { total: list.length, fire: c[0], wall: c[1], bed: c[2], furnace: c[3] };
+    return { total: list.length, fire: c[0], wall: c[1], bed: c[2], furnace: c[3], bench: c[4], store: c[5], fence: c[6], rack: c[7] };
   }
 
   return {
