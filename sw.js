@@ -1,89 +1,123 @@
-var CACHE_VERSION = 'wilds-v12';
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1f16">
+<title>Wilds</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
 
-var ASSETS = [
-  './index.html',
-  './style.css',
-  './manifest.json',
-  './js/config.js',
-  './js/rng.js',
-  './js/world.js',
-  './js/inventory.js',
-  './js/resources.js',
-  './js/minimap.js',
-  './js/save.js',
-  './js/stats.js',
-  './js/mobs.js',
-  './js/build.js',
-  './js/craft.js',
-  './js/time.js',
-  './js/firebase-config.js',
-  './js/cloud.js',
-  './js/camera.js',
-  './js/input.js',
-  './js/player.js',
-  './js/render.js',
-  './js/arrows.js',
-  './js/sfx.js',
-  './js/main.js',
-  './js/art.js',
-  './assets/tree.png',
-  './assets/tree_cut.png',
-  './assets/rock.png',
-  './assets/rock_mined.png',
-  './assets/grass.png',
-  './assets/grass_cut.png',
-  './assets/berry.png',
-  './assets/berry_empty.png',
-  './assets/deer.png',
-  './assets/deer_walk.png',
-  './assets/rabbit.png',
-  './assets/rabbit_hop.png',
-  './assets/wolf.png',
-  './assets/wolf_run.png',
-  './assets/campfire.png',
-  './assets/bed.png',
-  './assets/campfire_out.png',
-  './assets/workbench.png',
-  './assets/icon-192.png',
-  './assets/icon-512.png',
-  './assets/apple-touch-icon.png',
-  './assets/ui/axe.png',
-  './assets/ui/basket.png',
-  './assets/ui/berry.png',
-  './assets/ui/campfire.png',
-  './assets/ui/fiber.png',
-  './assets/ui/furnace.png',
-  './assets/ui/mushroom.png',
-  './assets/ui/pick.png',
-  './assets/ui/planks.png',
-  './assets/ui/sack.png',
-  './assets/ui/shovel.png',
-  './assets/ui/stone.png',
-  './assets/ui/stones.png',
-  './assets/ui/wood.png',
-  './assets/ui/workbench.png',
-  './assets/player.png'
-];
+<div id="hud">
+  <div id="hud-left">
+    <div class="hud-line" id="hud-pos">座標 --</div>
+    <div class="hud-line" id="hud-chunk">區塊 --</div>
+    <div id="bars">
+      <div class="bar"><span>❤️</span><div class="bar-bg"><div class="bar-fill hp" id="bar-hp"></div></div></div>
+      <div class="bar"><span>🍖</span><div class="bar-bg"><div class="bar-fill food" id="bar-food"></div></div></div>
+      <div class="bar"><span>⚡</span><div class="bar-bg"><div class="bar-fill stam" id="bar-stam"></div></div></div>
+    </div>
+  </div>
+  <div id="hud-right">
+    <div class="hud-line" id="hud-fps">-- FPS</div>
+    <div class="hud-line" id="hud-time">--</div>
+    <button id="btn-mute">🔊</button>
+    <button id="btn-sync">☁️</button>
+  </div>
+</div>
 
-self.addEventListener('install', function(e) {
-  self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE_VERSION).then(function(c) { return c.addAll(ASSETS); })
-  );
-});
+<div id="toast"></div>
 
-self.addEventListener('activate', function(e) {
-  e.waitUntil(
-    caches.keys().then(function(keys) {
-      return Promise.all(keys.map(function(k) {
-        if (k !== CACHE_VERSION) return caches.delete(k);
-      }));
-    }).then(function() { return self.clients.claim(); })
-  );
-});
+<div id="joy-base"><div id="joy-knob"></div></div>
 
-self.addEventListener('fetch', function(e) {
-  e.respondWith(
-    fetch(e.request).catch(function() { return caches.match(e.request); })
-  );
-});
+<div id="actions">
+  <button class="act-btn" id="btn-a">👊</button>
+  <button class="act-btn" id="btn-b">🗺️</button>
+  <button class="act-btn" id="btn-d">🔨</button>
+  <button class="act-btn" id="btn-c">🎒</button>
+</div>
+
+<button id="btn-diag">🔧</button>
+<div id="bag-panel">
+  <div id="bag-body"></div>
+  <div id="bag-actions">
+    <button class="diag-btn" id="btn-eat-berry">吃漿果</button>
+    <button class="diag-btn" id="btn-eat-meat">吃生肉</button>
+    <button class="diag-btn" id="btn-eat-cooked">吃烤肉</button>
+    <button class="diag-btn" id="btn-eat-soup">喝蘑菇湯</button>
+  </div>
+  <button id="bag-close">關閉</button>
+</div>
+<div id="struct-menu">
+  <div class="sm-title" id="sm-name">建物</div>
+  <button id="sm-move">📦 移動</button>
+  <button id="sm-store">🎒 收納（退回材料）</button>
+  <button id="sm-cancel">關閉</button>
+</div>
+<div id="place-bar">
+  <button id="pb-ok">✅ 放置</button>
+  <button id="pb-cancel">↩️ 取消</button>
+</div>
+<div id="goal-card">
+  <div class="gc-title">歡迎來到荒野</div>
+  <div class="gc-line">🪓 靠近樹木、石頭，按右下角按鈕採集</div>
+  <div class="gc-line">🔨 收集木頭後，用工作台合成工具與營火</div>
+  <div class="gc-line">🌙 天黑前生火——夜晚會有狼出沒</div>
+  <div class="gc-line">🎒 餓了就開背包吃漿果</div>
+  <button id="gc-close">開始探索</button>
+</div>
+<div id="craft-panel">
+  <div id="craft-head">工作台</div>
+  <div id="craft-list"></div>
+  <button id="btn-sleep">睡覺（夜晚待在睡袋旁）</button>
+  <button id="craft-close">關閉</button>
+</div>
+<div id="diag-panel">
+  <div id="diag-body"></div>
+  <div id="diag-actions">
+    <button class="diag-btn" id="btn-cloud">雲端登入</button>
+    <button class="diag-btn" id="btn-up">上傳雲端</button>
+    <button class="diag-btn" id="btn-down">下載雲端</button>
+  </div>
+  <div id="diag-actions">
+    <button class="diag-btn" id="btn-save">立即存檔</button>
+    <button class="diag-btn" id="btn-load">讀取存檔</button>
+    <button class="diag-btn danger" id="btn-wipe">清除存檔</button>
+  </div>
+  <button id="diag-close">關閉</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/config.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/world.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/resources.js"></script>
+<script src="js/minimap.js"></script>
+<script src="js/save.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/mobs.js"></script>
+<script src="js/arrows.js"></script>
+<script src="js/build.js"></script>
+<script src="js/sites.js"></script>
+<script src="js/craft.js"></script>
+<script src="js/time.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/art.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/input.js"></script>
+<script src="js/player.js"></script>
+<script src="js/render.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
