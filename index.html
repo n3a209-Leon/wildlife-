@@ -122,8 +122,8 @@ window.__wildsErr = function(msg) {
 };
 window.addEventListener('error', function(e) {
   var f = (e.filename || '').split('/').pop();
-  if (e.target && e.target.tagName === 'SCRIPT') {
-    window.__wildsErr('\u2717 \u6a94\u6848\u8f09\u5165\u5931\u6557\uff1a' + (e.target.src || '').split('/').slice(-2).join('/'));
+  if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'IMG')) {
+    window.__wildsErr('\u2717 \u627e\u4e0d\u5230\u6a94\u6848\uff1a' + (e.target.src || '').split('/').slice(-2).join('/'));
     return;
   }
   window.__wildsErr('\u2717 ' + (e.message || 'error') + '\n   ' + f + ':' + (e.lineno || 0));
