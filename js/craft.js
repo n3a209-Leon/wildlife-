@@ -4,12 +4,14 @@ window.W = window.W || {};
    新增欄位時務必同步 save.js 的 collect / apply / migrate 三處。 */
 W.Craft = (function() {
 
-  var gear = { axe: false, pick: false };
+  var gear = { axe: false, pick: false, bow: false };
 
   /* kind: tool = 取得裝備；place = 放置建造物；item = 產出物品
      need: 需要站在某種建造物旁（null 代表隨處可做） */
   var RECIPES = [
     { id: 'axe',  name: '\u77f3\u65a7',   icon: '\uD83E\uDE93', kind: 'tool',  cost: { wood: 3, stone: 2, fiber: 2 }, desc: '\u4f10\u6728\u7522\u91cf\uff0b2\uff0c\u653b\u64ca\uff0b7' },
+    { id: 'bow',   name: '\u6728\u5f13', icon: '\uD83C\uDFF9', kind: 'tool', cost: { wood: 4, fiber: 4 }, desc: '\u81ea\u52d5\u7784\u6e96\u9060\u7a0b\u5c04\u64ca' },
+    { id: 'arrow', name: '\u7bad\u77e2', icon: '\u27A4', kind: 'item', give: { arrow: 4 }, cost: { wood: 2, flint: 1 }, desc: '\u5f13\u7684\u5f48\u85e5\uFF0C\u4e00\u6b21\u505a 4 \u652f' },
     { id: 'pick', name: '\u77f3\u93ac',   icon: '\u26CF\uFE0F', kind: 'tool',  cost: { wood: 3, stone: 3, flint: 1 }, desc: '\u63a1\u77f3\u7522\u91cf\uff0b2' },
     { id: 'fire', name: '\u71df\u706b',   icon: '\uD83D\uDD25', kind: 'place', place: 0, cost: { wood: 5, stone: 3 }, desc: '\u65c1\u908a\u53ef\u4ee5\u70e4\u8089' },
     { id: 'wall', name: '\u6728\u7246',   icon: '\uD83E\uDDF1', kind: 'place', place: 1, cost: { wood: 4 }, desc: '\u963b\u64cb\u72fc\u7fa4' },
@@ -109,17 +111,19 @@ W.Craft = (function() {
   }
 
   function exportData() {
-    return { axe: !!gear.axe, pick: !!gear.pick };
+    return { axe: !!gear.axe, pick: !!gear.pick, bow: !!gear.bow };
   }
 
   function importData(o) {
     gear.axe = !!(o && o.axe);
     gear.pick = !!(o && o.pick);
+    gear.bow = !!(o && o.bow);
   }
 
   function clear() {
     gear.axe = false;
     gear.pick = false;
+    gear.bow = false;
   }
 
   return {
