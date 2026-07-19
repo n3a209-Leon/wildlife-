@@ -18,8 +18,8 @@ W.Render = (function() {
   }
   var _pulse = 0;
 
-  var NODE_ART      = ['tree', 'rock', 'grass', 'berry', ''];
-  var NODE_ART_DEAD = ['tree_cut', 'rock_mined', 'grass_cut', 'berry_empty', ''];
+  var NODE_ART      = ['tree', 'rock', 'grass', 'berry', '', 'ui/mushroom'];
+  var NODE_ART_DEAD = ['tree_cut', 'rock_mined', 'grass_cut', 'berry_empty', '', ''];
   var MOB_ART       = ['deer', 'rabbit', 'wolf'];
   var MOB_ART_MOVE  = ['deer_walk', 'rabbit_hop', 'wolf_run'];
   var artT = 0;
@@ -113,6 +113,75 @@ W.Render = (function() {
     ctx.lineTo(5 * z, 3 * z);
     ctx.fill();
     ctx.restore();
+  }
+
+  /* 遺跡：廢墟用斷柱、洞穴用岩壁開口，中間放一個箱子 */
+  function drawOneSite(s, sx, sy) {
+    var z = W.Camera.zoom;
+    var looted = W.Sites.isLooted(s);
+    var rockImg = W.Art.get('rock');
+    var i, ang, px, py;
+
+    if (s.type === 0) {
+      for (i = 0; i < 6; i++) {
+        ang = i * Math.PI / 3 + 0.4;
+        px = sx + Math.cos(ang) * 46 * z;
+        py = sy + Math.sin(ang) * 24 * z;
+        if (rockImg) {
+          drawArt(rockImg, px, py + 6 * z, 26, false);
+        } else {
+          ctx.fillStyle = '#8a8a80';
+          ctx.fillRect(px - 7 * z, py - 16 * z, 14 * z, 20 * z);
+        }
+      }
+    } else {
+      ctx.fillStyle = '#5d5b55';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 6 * z, 46 * z, 30 * z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#14120f';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 2 * z, 24 * z, 18 * z, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    /* 箱子 */
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 8 * z, 14 * z, 5 * z, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = looted ? '#5a4a33' : '#8a6532';
+    ctx.fillRect(sx - 13 * z, sy - 12 * z, 26 * z, 20 * z);
+    ctx.fillStyle = looted ? '#6b5940' : '#a67c3d';
+    ctx.fillRect(sx - 13 * z, sy - 12 * z, 26 * z, 7 * z);
+    ctx.strokeStyle = '#3a2b17';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sx - 13 * z, sy - 12 * z, 26 * z, 20 * z);
+
+    if (!looted) {
+      ctx.fillStyle = '#ffd85e';
+      ctx.fillRect(sx - 3 * z, sy - 6 * z, 6 * z, 6 * z);
+      ctx.strokeStyle = 'rgba(255,225,140,' + (0.45 + 0.25 * Math.sin(artT * 3)) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 6 * z, 30 * z, 14 * z, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  function drawSites(before) {
+    if (!W.Sites) return;
+    var C = W.Camera;
+    var py = W.Player.wy;
+    var i, s, n = W.Sites.nearCount();
+    for (i = 0; i < n; i++) {
+      s = W.Sites.nearAt(i);
+      if (before ? (s.wy >= py) : (s.wy < py)) continue;
+      W.Camera.worldToScreenInto(s.wx, s.wy, _p);
+      if (_p.sx < -120 || _p.sy < -120 || _p.sx > C.vw + 120 || _p.sy > C.vh + 120) continue;
+      drawOneSite(s, _p.sx, _p.sy);
+    }
   }
 
   function drawCarryGhost() {
@@ -274,6 +343,12 @@ W.Render = (function() {
     var img = W.Art.get(alive ? NODE_ART[ty] : NODE_ART_DEAD[ty]);
 
     if (img) {
+      if (ty === 5) {
+        ctx.fillStyle = 'rgba(190,140,255,' + (0.16 + 0.08 * Math.sin(artT * 3 + nd.wx)) + ')';
+        ctx.beginPath();
+        ctx.arc(sx, sy - 8 * z, 24 * z, 0, Math.PI * 2);
+        ctx.fill();
+      }
       shadow(sx + 1, sy + 3, 11 * z, 4.5 * z);
       drawArt(img, sx, sy + 4 * z, alive ? W.CFG.ART_NODE_H[ty] : W.CFG.ART_NODE_DEAD_H[ty], false);
       return;
@@ -466,10 +541,12 @@ W.Render = (function() {
     var aimg = null;
     if (ty === 0) aimg = W.Art.get('campfire');
     else if (ty === 2) aimg = W.Art.get('bed');
+    else if (ty === 3) aimg = W.Art.get('ui/furnace');
 
     if (aimg) {
       shadow(sx, sy + 4 * z, 13 * z, 5 * z);
-      drawArt(aimg, sx, sy + 6 * z, (ty === 0) ? W.CFG.ART_FIRE_H : W.CFG.ART_BED_H, false);
+      drawArt(aimg, sx, sy + 6 * z,
+        (ty === 0) ? W.CFG.ART_FIRE_H : ((ty === 3) ? W.CFG.ART_FURNACE_H : W.CFG.ART_BED_H), false);
       return;
     }
 
@@ -591,13 +668,26 @@ W.Render = (function() {
     punchLight(nightCtx, _p.sx, _p.sy, W.CFG.LIGHT_PLAYER);
 
     var i, s, n = W.Build.count(), flick;
+
+    /* 夜光蘑菇是小光源，玩家在夜裡遠遠就能看到 */
+    var nowMs = Date.now();
+    var mi;
+    for (mi = 0; mi < W.Res.nearCount(); mi++) {
+      s = W.Res.nearAt(mi);
+      if (s.type !== 5) continue;
+      if (!W.Res.isAlive(s, nowMs)) continue;
+      W.Camera.worldToScreenInto(s.wx, s.wy, _p);
+      punchLight(nightCtx, _p.sx, _p.sy, 70);
+    }
+
     for (i = 0; i < n; i++) {
       s = W.Build.at(i);
-      if (s.type !== W.Build.TYPE.FIRE) continue;
+      if (s.type !== W.Build.TYPE.FIRE && s.type !== W.Build.TYPE.FURNACE) continue;
       W.Camera.worldToScreenInto(s.wx, s.wy, _p);
       if (_p.sx < -300 || _p.sy < -300 || _p.sx > nightW + 300 || _p.sy > nightH + 300) continue;
       flick = 1 + 0.06 * Math.sin(Date.now() * 0.006 + s.wx);
-      punchLight(nightCtx, _p.sx, _p.sy, W.CFG.LIGHT_FIRE * flick);
+      punchLight(nightCtx, _p.sx, _p.sy,
+        ((s.type === W.Build.TYPE.FURNACE) ? W.CFG.LIGHT_FIRE * 0.55 : W.CFG.LIGHT_FIRE) * flick);
     }
 
     nightCtx.globalCompositeOperation = 'source-over';
@@ -705,6 +795,7 @@ W.Render = (function() {
     drawWorldBorder();
     drawTarget(dt);
     drawPlaceGhost();
+    drawSites(true);
     drawBuilds(true);
     drawNodes(true);
     drawMobs(true);
@@ -716,6 +807,7 @@ W.Render = (function() {
     drawMobs(false);
     drawNodes(false);
     drawBuilds(false);
+    drawSites(false);
     drawNight();
     drawSleep(dt);
     drawHurtFlash();
