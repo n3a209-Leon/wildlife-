@@ -48,6 +48,25 @@ W.Minimap = (function() {
       }
     }
 
+    /* 遺跡方位標記：未搜刮金色、已搜刮灰色 */
+    var si, s, mx, my, half2 = SIZE / 2;
+    var hasSites = !!W.Sites;
+    var scale = SIZE / (N * step);
+    for (si = 0; hasSites && si < W.Sites.nearCount(); si++) {
+      s = W.Sites.nearAt(si);
+      mx = half2 + (s.wx - W.Player.wx) * scale;
+      my = half2 + (s.wy - W.Player.wy) * scale;
+      if (mx < 3 || my < 3 || mx > SIZE - 3 || my > SIZE - 3) continue;
+      c.fillStyle = W.Sites.isLooted(s) ? 'rgba(150,150,150,0.9)' : '#ffd85e';
+      c.beginPath();
+      c.moveTo(mx, my - 5);
+      c.lineTo(mx + 5, my);
+      c.lineTo(mx, my + 5);
+      c.lineTo(mx - 5, my);
+      c.closePath();
+      c.fill();
+    }
+
     c.fillStyle = '#ffef9f';
     c.fillRect(SIZE / 2 - 2, SIZE / 2 - 2, 4, 4);
     c.strokeStyle = 'rgba(255,255,255,0.35)';
