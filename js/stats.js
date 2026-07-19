@@ -7,6 +7,7 @@ W.Stats = (function() {
   var hp = 100, hpMax = 100;
   var food = 100, foodMax = 100;
   var stam = 100, stamMax = 100;
+  var san = 100, sanMax = 100;
   var dead = false;
   var hurtT = 0;
   var invT = 0;
@@ -26,11 +27,43 @@ W.Stats = (function() {
     stam += W.CFG.STAM_REGEN * dt;
     if (stam > stamMax) stam = stamMax;
 
+    updateSanity(dt);
+
     if (hp > hpMax) hp = hpMax;
     if (hurtT > 0) hurtT -= dt;
     if (invT > 0) invT -= dt;
 
     if (hp <= 0) { hp = 0; dead = true; }
+  }
+
+  /* 理智值：夜裡會掉，靠近營火回得比掉得快，白天緩慢自然回復。
+     這是「夜晚要不要出門」的第二層壓力來源。 */
+  function updateSanity(dt) {
+    var night = W.Time && W.Time.isNight();
+    var nearFire = false;
+
+    if (W.Build && W.Build.nearType) {
+      nearFire = !!(W.Build.nearType(W.Player.wx, W.Player.wy, W.Build.TYPE.FIRE, W.CFG.SAN_FIRE_RANGE) ||
+                    W.Build.nearType(W.Player.wx, W.Player.wy, W.Build.TYPE.FURNACE, W.CFG.SAN_FIRE_RANGE));
+    }
+
+    if (nearFire) {
+      san += W.CFG.SAN_FIRE_REGEN * dt;
+    } else if (night) {
+      var dark = W.Time ? W.Time.darkness() : 0;
+      san -= (dark > 0.5 ? W.CFG.SAN_DARK_DRAIN : W.CFG.SAN_NIGHT_DRAIN) * dt;
+    } else {
+      san += W.CFG.SAN_DAY_REGEN * dt;
+    }
+
+    if (san > sanMax) san = sanMax;
+    if (san < 0) san = 0;
+  }
+
+  function addSan(n) {
+    san += n;
+    if (san > sanMax) san = sanMax;
+    if (san < 0) san = 0;
   }
 
   function damage(n) {
@@ -57,6 +90,7 @@ W.Stats = (function() {
   }
 
   function revive() {
+    san = sanMax * 0.6;
     hp = hpMax * 0.5;
     food = foodMax * 0.4;
     stam = stamMax;
@@ -66,7 +100,7 @@ W.Stats = (function() {
   }
 
   function exportData() {
-    return { hp: hp, food: food, stam: stam };
+    return { hp: hp, food: food, stam: stam, san: san };
   }
 
   function importData(o) {
@@ -74,6 +108,7 @@ W.Stats = (function() {
     if (typeof o.hp === 'number' && isFinite(o.hp))     hp   = Math.max(1, Math.min(hpMax, o.hp));
     if (typeof o.food === 'number' && isFinite(o.food)) food = Math.max(0, Math.min(foodMax, o.food));
     if (typeof o.stam === 'number' && isFinite(o.stam)) stam = Math.max(0, Math.min(stamMax, o.stam));
+    san = (typeof o.san === 'number' && isFinite(o.san)) ? Math.max(0, Math.min(sanMax, o.san)) : sanMax;
     dead = false;
   }
 
@@ -88,9 +123,13 @@ W.Stats = (function() {
     hp:    function() { return hp; },
     food:  function() { return food; },
     stam:  function() { return stam; },
+    san:   function() { return san; },
+    addSan: addSan,
     hpPct:   function() { return hp / hpMax; },
     foodPct: function() { return food / foodMax; },
     stamPct: function() { return stam / stamMax; },
+    sanPct:  function() { return san / sanMax; },
+    isLowSan: function() { return (san / sanMax) < W.CFG.SAN_LOW; },
     isDead:  function() { return dead; },
     isHurt:  function() { return hurtT > 0; }
   };
