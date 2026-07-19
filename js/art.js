@@ -9,7 +9,12 @@ W.Art = (function() {
     'tree', 'tree_cut', 'rock', 'rock_mined',
     'grass', 'grass_cut', 'berry', 'berry_empty',
     'deer', 'deer_walk', 'rabbit', 'rabbit_hop', 'wolf', 'wolf_run',
-    'campfire', 'bed'
+    'boar', 'boar_run', 'bear', 'bear_walk', 'crow', 'crow_fly',
+    'campfire', 'bed', 'workbench',
+    'wall', 'chest', 'chest_open', 'ruin', 'cave', 'crate', 'fence', 'rack',
+    'ui/mushroom', 'ui/furnace', 'ui/flint', 'ui/meat', 'ui/cooked',
+    'ui/hide', 'ui/arrow', 'ui/metal', 'ui/soup', 'ui/jerky',
+    'ui/wood', 'ui/stone', 'ui/fiber', 'ui/berry', 'ui/axe', 'ui/pick', 'ui/basket'
   ];
 
   var imgs = {};
