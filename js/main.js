@@ -139,6 +139,16 @@ W.Game = (function() {
     var mode, icon;
     var P = W.Player;
 
+    if (W.Sites && W.Sites.chestAt(P.wx, P.wy)) {
+      if (_btnMode !== 'loot') {
+        _btnMode = 'loot';
+        _btnA.textContent = '\uD83D\uDCE6';
+        _btnA.style.opacity = '1';
+        _btnA.style.transform = 'scale(1.12)';
+      }
+      return;
+    }
+
     var nm = nearestMobDist();
     if (nm <= W.CFG.ATTACK_RANGE) {
       mode = 'atk';
@@ -173,6 +183,23 @@ W.Game = (function() {
 
   function doAction() {
     if (W.Stats.isDead()) return;
+
+    var chest = W.Sites ? W.Sites.chestAt(W.Player.wx, W.Player.wy) : null;
+    if (chest) {
+      var lt = W.Sites.loot(chest);
+      if (lt) {
+        if (W.Sfx) W.Sfx.kill();
+        var msg = lt.name + '\uff1a';
+        if (lt.metal)  msg += ' \u91d1\u5c6c\u00d7' + lt.metal;
+        if (lt.flint)  msg += ' \u71e7\u77f3\u00d7' + lt.flint;
+        if (lt.arrow)  msg += ' \u7bad\u00d7' + lt.arrow;
+        if (lt.hide)   msg += ' \u6bdb\u76ae\u00d7' + lt.hide;
+        if (lt.cooked) msg += ' \u70e4\u8089\u00d7' + lt.cooked;
+        showToast(msg);
+        W.Save.save();
+      }
+      return;
+    }
 
     var nm = nearestMobDist();
     if (canBow(nm)) {
@@ -261,7 +288,10 @@ W.Game = (function() {
     _lastHp = hpNow;
 
     var nightNow = W.Time.isNight();
-    if (nightNow && !_wasNight && W.Sfx) W.Sfx.night();
+    if (nightNow && !_wasNight) {
+      if (W.Sfx) W.Sfx.night();
+      showToast('\uD83C\uDF19 \u5165\u591c\u4e86\u2026\u591c\u5149\u8611\u83c7\u958b\u59cb\u751f\u9577');
+    }
     _wasNight = nightNow;
   }
 
@@ -427,6 +457,7 @@ W.Game = (function() {
     W.Stats.update(dt);
     W.Mobs.update(dt);
     W.Arrows.update(dt);
+    if (W.Sites) W.Sites.updateNear(W.Player.wx, W.Player.wy);
     if (_bowCd > 0) _bowCd -= dt;
     checkDeath(dt);
     W.World.tick(frame);
@@ -454,6 +485,7 @@ W.Game = (function() {
     var bs = W.Build.stats();
     var cl = W.Cloud.info();
     var ar = W.Art.stats();
+    var ss = W.Sites ? W.Sites.stats() : { near: 0, looted: 0 };
     return [
       '=== WILDS 診斷 (Phase 1) ===',
       '',
@@ -509,7 +541,7 @@ W.Game = (function() {
       '--- \u5408\u6210\u8207\u5efa\u9020 (Phase 6) ---',
       '\u77f3\u65a7         : ' + (W.Craft.has('axe') ? '\u5df2\u64c1\u6709' : '\u7121'),
       '\u77f3\u93ac         : ' + (W.Craft.has('pick') ? '\u5df2\u64c1\u6709' : '\u7121'),
-      '\u5efa\u9020\u7269\u7e3d\u6578 : ' + bs.total + '\uff08\u71df\u706b ' + bs.fire + '\u3001\u6728\u7246 ' + bs.wall + '\u3001\u7761\u888b ' + bs.bed + '\uff09',
+      '\u5efa\u9020\u7269\u7e3d\u6578 : ' + bs.total + '\uff08\u71df\u706b ' + bs.fire + '\u3001\u6728\u7246 ' + bs.wall + '\u3001\u7761\u888b ' + bs.bed + '\u3001\u7194\u7210 ' + (bs.furnace || 0) + '\uff09',
       '\u7ad9\u5728\u71df\u706b\u65c1 : ' + (!!W.Build.nearType(W.Player.wx, W.Player.wy, 0, W.CFG.FIRE_RANGE)),
       '',
       '--- \u65e5\u591c (Phase 7) ---',
@@ -520,6 +552,8 @@ W.Game = (function() {
       '\u4e00\u65e5\u9577\u5ea6     : ' + W.CFG.DAY_LENGTH + ' \u79d2',
       '',
       '\u7d20\u6750\u8f09\u5165     : ' + ar.loaded + ' / ' + ar.total + '\uff08\u5931\u6557 ' + ar.failed + '\uff09',
+      '',
+      '\u9130\u8fd1\u907a\u8de1     : ' + ss.near + '\uff08\u5df2\u641c\u5237 ' + ss.looted + ' \u5ea7\uff09',
       '',
       '--- \u96f2\u7aef (Phase 8) ---',
       '\u96f2\u7aef\u72c0\u614b     : ' + cl.reason,
@@ -639,6 +673,10 @@ W.Game = (function() {
 
     document.getElementById('btn-eat-cooked').addEventListener('click', function() {
       eat('cooked', W.CFG.EAT_COOKED_FOOD, W.CFG.EAT_COOKED_HP);
+    });
+
+    document.getElementById('btn-eat-soup').addEventListener('click', function() {
+      eat('soup', W.CFG.EAT_SOUP_FOOD, W.CFG.EAT_SOUP_HP);
     });
 
     document.getElementById('bag-close').addEventListener('click', function() {
