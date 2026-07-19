@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'wilds-v11';
+var CACHE_VERSION = 'wilds-v12';
 
 var ASSETS = [
   './index.html',
@@ -42,6 +42,26 @@ var ASSETS = [
   './assets/wolf_run.png',
   './assets/campfire.png',
   './assets/bed.png',
+  './assets/campfire_out.png',
+  './assets/workbench.png',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
+  './assets/apple-touch-icon.png',
+  './assets/ui/axe.png',
+  './assets/ui/basket.png',
+  './assets/ui/berry.png',
+  './assets/ui/campfire.png',
+  './assets/ui/fiber.png',
+  './assets/ui/furnace.png',
+  './assets/ui/mushroom.png',
+  './assets/ui/pick.png',
+  './assets/ui/planks.png',
+  './assets/ui/sack.png',
+  './assets/ui/shovel.png',
+  './assets/ui/stone.png',
+  './assets/ui/stones.png',
+  './assets/ui/wood.png',
+  './assets/ui/workbench.png',
   './assets/player.png'
 ];
 
