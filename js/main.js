@@ -666,6 +666,7 @@ W.Game = (function() {
       '\u4e00\u65e5\u9577\u5ea6     : ' + W.CFG.DAY_LENGTH + ' \u79d2',
       '',
       '\u7d20\u6750\u8f09\u5165     : ' + ar.loaded + ' / ' + ar.total + '\uff08\u5931\u6557 ' + ar.failed + '\uff09',
+      (ar.failed ? '\u7f3a\u5c11\u7d20\u6750     : ' + ar.names.join('\u3001') : '\u7d20\u6750\u5b8c\u6574     : \u2713'),
       '',
       '\u7406\u667a         : ' + W.Stats.san().toFixed(0) + ' / 100' + (W.Stats.isLowSan() ? '\uff08\u904e\u4f4e\uff01\u9670\u5f71\u51fa\u6c92\uff09' : ''),
       '\u80cc\u5305         : ' + W.Inv.total() + ' / ' + W.Inv.cap(),
