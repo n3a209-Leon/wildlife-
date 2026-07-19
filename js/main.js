@@ -87,6 +87,7 @@ W.Game = (function() {
     if (!id) return;
     var r = W.Craft.make(id);
     if (r === true) {
+      if (W.Sfx) W.Sfx.place();
       showToast('\u5236\u4f5c\u5b8c\u6210');
       renderCraft();
     } else {
@@ -103,19 +104,30 @@ W.Game = (function() {
   var _btnA = null;
   var _btnMode = '';
   var _btnTimer = 0;
+  var _bowCd = 0;
+  var _nearMob = null;
 
+  /* 一次迴圈同時得到最近距離與最近目標，不跑兩趟 */
   function nearestMobDist() {
     var P = W.Player, best = 1e9;
     var i, m, dx, dy, d2, n = W.Mobs.count();
+    _nearMob = null;
     for (i = 0; i < n; i++) {
       m = W.Mobs.at(i);
       if (!m || !m.alive) continue;
       dx = m.wx - P.wx;
       dy = m.wy - P.wy;
       d2 = dx * dx + dy * dy;
-      if (d2 < best) best = d2;
+      if (d2 < best) { best = d2; _nearMob = m; }
     }
     return Math.sqrt(best);
+  }
+
+  function nearestMob() { return _nearMob; }
+
+  function canBow(dist) {
+    return W.Craft.has('bow') && W.Inv.count('arrow') > 0 &&
+           dist > W.CFG.ATTACK_RANGE && dist <= W.CFG.BOW_RANGE;
   }
 
   function updateActionBtn(dt) {
@@ -127,9 +139,13 @@ W.Game = (function() {
     var mode, icon;
     var P = W.Player;
 
-    if (nearestMobDist() <= W.CFG.ATTACK_RANGE) {
+    var nm = nearestMobDist();
+    if (nm <= W.CFG.ATTACK_RANGE) {
       mode = 'atk';
       icon = '\u2694\uFE0F';
+    } else if (canBow(nm)) {
+      mode = 'bow';
+      icon = '\uD83C\uDFF9';
     } else if (W.Res.findTarget(P.wx, P.wy, P.faceX, P.faceY)) {
       mode = 'harvest';
       icon = '\uD83E\uDE93';
@@ -157,11 +173,33 @@ W.Game = (function() {
 
   function doAction() {
     if (W.Stats.isDead()) return;
+
+    var nm = nearestMobDist();
+    if (canBow(nm)) {
+      if (_bowCd <= 0) {
+        var tgt = nearestMob();
+        if (tgt && W.Arrows.fire(W.Player.wx, W.Player.wy, tgt)) {
+          W.Inv.take('arrow', 1);
+          _bowCd = W.CFG.BOW_CD;
+          W.Player.faceX = (tgt.wx - W.Player.wx);
+          W.Player.faceY = (tgt.wy - W.Player.wy);
+          var fl = Math.sqrt(W.Player.faceX * W.Player.faceX + W.Player.faceY * W.Player.faceY) || 1;
+          W.Player.faceX /= fl;
+          W.Player.faceY /= fl;
+          if (W.Sfx) W.Sfx.bow();
+        }
+      }
+      return;
+    }
+
     /* 揮空也要出弧光，這是手感的關鍵 */
     W.Render.slash(W.Player.faceX, W.Player.faceY);
     var a = W.Player.attack();
     if (a === 'tired') { showToast('\u9ad4\u529b\u4e0d\u8db3'); return; }
     if (a) {
+      W.Render.dmgText(W.Player.wx + W.Player.faceX * 40, W.Player.wy + W.Player.faceY * 40 - 14, '-' + a.dmg);
+      if (W.Sfx) { if (a.killed) { W.Sfx.kill(); } else { W.Sfx.hit(); } }
+      if (a.killed) checkWolfMilestone(a.type);
       showToast(a.killed
         ? ('\u64ca\u5012 ' + a.name + '\uff01\uff0b\u751f\u8089\u3001\u6bdb\u76ae')
         : (a.name + ' \u53d7\u5230 ' + a.dmg + ' \u9ede\u50b7\u5bb3'));
@@ -173,6 +211,7 @@ W.Game = (function() {
   function eat(id, foodAdd, hpDelta) {
     if (!W.Inv.take(id, 1)) { showToast('\u6c92\u6709' + W.Inv.label(id)); return; }
     W.Stats.eat(foodAdd, hpDelta);
+    if (W.Sfx) W.Sfx.eat();
     showToast('\u5403\u4e86' + W.Inv.label(id) + '\uff0c\u98fd\u98df \uff0b' + foodAdd);
     document.getElementById('bag-body').textContent =
       '\u80cc\u5305\uff08\u5171 ' + W.Inv.total() + ' \u4ef6\uff09\n\n' + W.Inv.summary();
@@ -191,6 +230,8 @@ W.Game = (function() {
       showToast('\u592a\u9913\u4e86\uff0c\u7761\u4e0d\u7740\uff08\u9700\u8981\u98fd\u98df ' + W.CFG.SLEEP_FOOD + '\uff09');
       return;
     }
+    W.Render.sleepFx();
+    if (W.Sfx) W.Sfx.sleep();
     W.Time.skipToDawn();
     W.Stats.eat(-W.CFG.SLEEP_FOOD, W.CFG.SLEEP_HEAL);
     W.Mobs.clearAll();
@@ -211,6 +252,19 @@ W.Game = (function() {
     cloudLabel();
   }
 
+  var _lastHp = -1;
+  var _wasNight = false;
+
+  function pollFeedback() {
+    var hpNow = W.Stats.hp();
+    if (_lastHp >= 0 && hpNow < _lastHp - 0.01 && W.Sfx) W.Sfx.hurt();
+    _lastHp = hpNow;
+
+    var nightNow = W.Time.isNight();
+    if (nightNow && !_wasNight && W.Sfx) W.Sfx.night();
+    _wasNight = nightNow;
+  }
+
   function checkDeath(dt) {
     if (!W.Stats.isDead()) { deadT = 0; return; }
     deadT += dt;
@@ -224,9 +278,135 @@ W.Game = (function() {
     showToast('\u4f60\u6607\u5929\u4e86\u2026\u2026\u65bc\u71df\u5730\u91cd\u65b0\u7747\u958b\u96d9\u773c');
   }
 
+  var mileFirstWolf = false;
+  var mileLastDay = 1;
+
+  function checkMilestones() {
+    var d = W.Time.dayNo();
+    if (d > mileLastDay) {
+      mileLastDay = d;
+      showToast('\uD83C\uDF05 \u5b58\u6d3b\u7b2c ' + d + ' \u5929\uff01');
+    }
+  }
+
+  function checkWolfMilestone(type) {
+    if (mileFirstWolf) return;
+    if (type !== W.Mobs.TYPE.WOLF) return;
+    mileFirstWolf = true;
+    showToast('\uD83C\uDFC6 \u9996\u6b21\u64ca\u5012\u91ce\u72fc\uff01');
+  }
+
+  function onArrowHit(hit, wx, wy) {
+    W.Render.dmgText(wx, wy - 10, '-' + hit.dmg);
+    if (W.Sfx) { if (hit.killed) { W.Sfx.kill(); } else { W.Sfx.arrowHit(); } }
+    if (hit.killed) {
+      checkWolfMilestone(hit.type);
+      showToast('\u64ca\u5012 ' + hit.name + '\uff01\uff0b\u751f\u8089\u3001\u6bdb\u76ae');
+    }
+  }
+
+  var _tap = { sx: 0, sy: 0 };
+  var _tapW = { wx: 0, wy: 0 };
+  var _cp = { wx: 0, wy: 0 };
+  var _selStruct = null;
+  var _carry = null;
+
+  function findStructAt(wx, wy, r) {
+    var best = -1, bd = r * r, k, s, dx, dy, d2;
+    for (k = 0; k < W.Build.count(); k++) {
+      s = W.Build.at(k);
+      dx = s.wx - wx;
+      dy = s.wy - wy;
+      d2 = dx * dx + dy * dy;
+      if (d2 < bd) { bd = d2; best = k; }
+    }
+    return best;
+  }
+
+  function handleTap() {
+    if (_carry) return;
+    if (!W.Input.consumeTap(_tap)) return;
+    W.Camera.screenToWorldInto(_tap.sx, _tap.sy, _tapW);
+    var si = findStructAt(_tapW.wx, _tapW.wy, 46);
+    if (si >= 0) openStructMenu(si);
+  }
+
+  function openStructMenu(i) {
+    _selStruct = W.Build.at(i);
+    document.getElementById('sm-name').textContent = W.Build.nameOf(_selStruct.type);
+    document.getElementById('struct-menu').classList.add('open');
+  }
+
+  function closeStructMenu() {
+    _selStruct = null;
+    document.getElementById('struct-menu').classList.remove('open');
+  }
+
+  function costOfPlaced(type) {
+    var rs = W.Craft.list(), k, r;
+    for (k = 0; k < rs.length; k++) {
+      r = rs[k];
+      if (r.kind === 'place' && r.place === type) return r.cost;
+    }
+    return null;
+  }
+
+  function storeStruct() {
+    if (!_selStruct) return;
+    var cost = costOfPlaced(_selStruct.type), k;
+    if (cost) {
+      for (k in cost) {
+        if (cost.hasOwnProperty(k)) W.Inv.add(k, cost[k]);
+      }
+    }
+    W.Build.removeAt(_selStruct.wx, _selStruct.wy, 4);
+    W.Build.updateNear(W.Player.wx, W.Player.wy);
+    showToast(W.Build.nameOf(_selStruct.type) + ' \u5df2\u6536\u7d0d\uff0c\u6750\u6599\u9000\u56de\u80cc\u5305');
+    closeStructMenu();
+  }
+
+  function beginMove() {
+    if (!_selStruct) return;
+    _carry = { type: _selStruct.type, owx: _selStruct.wx, owy: _selStruct.wy };
+    W.Build.removeAt(_selStruct.wx, _selStruct.wy, 4);
+    W.Build.updateNear(W.Player.wx, W.Player.wy);
+    closeStructMenu();
+    document.getElementById('place-bar').classList.add('open');
+    showToast('\u8d70\u5230\u76ee\u6a19\u4f4d\u7f6e\u5f8c\u6309\u300c\u653e\u7f6e\u300d');
+  }
+
+  function carryPos(out) {
+    out.wx = W.Player.wx + W.Player.faceX * W.CFG.PLACE_DIST;
+    out.wy = W.Player.wy + W.Player.faceY * W.CFG.PLACE_DIST;
+  }
+
+  function placeCarry() {
+    if (!_carry) return;
+    carryPos(_cp);
+    if (!W.Build.canPlace(_cp.wx, _cp.wy)) {
+      showToast('\u9019\u88e1\u4e0d\u80fd\u653e\uff0c\u63db\u500b\u4f4d\u7f6e');
+      return;
+    }
+    W.Build.add(_carry.type, _cp.wx, _cp.wy);
+    W.Build.updateNear(W.Player.wx, W.Player.wy);
+    if (W.Sfx) W.Sfx.place();
+    showToast(W.Build.nameOf(_carry.type) + ' \u5df2\u653e\u7f6e');
+    _carry = null;
+    document.getElementById('place-bar').classList.remove('open');
+  }
+
+  function cancelCarry() {
+    if (!_carry) return;
+    W.Build.add(_carry.type, _carry.owx, _carry.owy);
+    W.Build.updateNear(W.Player.wx, W.Player.wy);
+    _carry = null;
+    document.getElementById('place-bar').classList.remove('open');
+  }
+
   function doHarvest() {
     var r = W.Player.harvest(Date.now());
     if (!r) { showToast('\u9644\u8fd1\u6c92\u6709\u53ef\u63a1\u96c6\u7684\u6771\u897f'); return; }
+    if (W.Sfx) W.Sfx.harvest();
     showToast(r.name + ' \uff0b' + W.Inv.label(r.item) + ' \u00d7' + r.n);
   }
 
@@ -246,6 +426,8 @@ W.Game = (function() {
     W.Player.update(dt);
     W.Stats.update(dt);
     W.Mobs.update(dt);
+    W.Arrows.update(dt);
+    if (_bowCd > 0) _bowCd -= dt;
     checkDeath(dt);
     W.World.tick(frame);
     W.Minimap.tick(dt);
@@ -257,6 +439,9 @@ W.Game = (function() {
     updateHUD(dt);
     updateActionBtn(dt);
     noteAutosave(dt);
+    checkMilestones();
+    pollFeedback();
+    handleTap();
 
     requestAnimationFrame(loop);
   }
@@ -373,7 +558,7 @@ W.Game = (function() {
       setTimeout(resize, 200);
     });
 
-    document.getElementById('btn-a').addEventListener('click', doAction);
+    document.getElementById('btn-a').addEventListener('pointerdown', function(e) { e.preventDefault(); doAction(); });
 
     document.getElementById('btn-eat-berry').addEventListener('click', function() {
       eat('berry', W.CFG.EAT_BERRY_FOOD, 0);
@@ -383,18 +568,46 @@ W.Game = (function() {
       eat('meat', W.CFG.EAT_MEAT_FOOD, W.CFG.EAT_MEAT_HP);
     });
 
-    document.getElementById('btn-b').addEventListener('click', function() {
+    document.getElementById('btn-b').addEventListener('pointerdown', function(e) {
+      e.preventDefault();
       var on = W.Minimap.toggle();
       showToast('\u5c0f\u5730\u5716\uff1a' + (on ? '\u958b\u555f' : '\u95dc\u9589'));
     });
 
-    document.getElementById('btn-c').addEventListener('click', openBag);
+    document.getElementById('btn-c').addEventListener('pointerdown', function(e) { e.preventDefault(); openBag(); });
 
-    document.getElementById('btn-d').addEventListener('click', openCraft);
+    document.getElementById('btn-d').addEventListener('pointerdown', function(e) { e.preventDefault(); openCraft(); });
 
     document.getElementById('gc-close').addEventListener('click', function() {
       document.getElementById('goal-card').classList.remove('open');
       try { window.localStorage.setItem('wilds:goalSeen', '1'); } catch (e) {}
+    });
+
+    document.addEventListener('pointerdown', function globalBtnPop(e) {
+      if (W.Sfx) W.Sfx.unlock();
+      var t = e.target;
+      while (t && t !== document.body) {
+        if (t.tagName === 'BUTTON') {
+          t.classList.remove('btn-pop');
+          void t.offsetWidth;
+          t.classList.add('btn-pop');
+          if (W.Sfx) W.Sfx.tap();
+          return;
+        }
+        t = t.parentNode;
+      }
+    }, true);
+
+    document.getElementById('sm-move').addEventListener('click', beginMove);
+    document.getElementById('sm-store').addEventListener('click', storeStruct);
+    document.getElementById('sm-cancel').addEventListener('click', closeStructMenu);
+    document.getElementById('pb-ok').addEventListener('click', placeCarry);
+    document.getElementById('pb-cancel').addEventListener('click', cancelCarry);
+
+    document.getElementById('btn-mute').addEventListener('click', function() {
+      var m = !W.Sfx.isMuted();
+      W.Sfx.setMuted(m);
+      this.textContent = m ? '\uD83D\uDD07' : '\uD83D\uDD0A';
     });
 
     document.getElementById('craft-close').addEventListener('click', closeCraft);
@@ -505,7 +718,17 @@ W.Game = (function() {
     if (W.Stats.hpPct() < 0.3) showToast('\u751f\u547d\u5371\u96aa\uff01\u5feb\u9003\u6216\u9032\u98df');
   }
 
-  return { init: init, onHurt: onHurt, placeMode: function() { return craftOpen; } };
+  return {
+    init: init,
+    onHurt: onHurt,
+    onArrowHit: onArrowHit,
+    placeMode: function() { return craftOpen; },
+    carryGhost: function(out) {
+      if (!_carry) return 0;
+      carryPos(out);
+      return _carry.type + 1;
+    }
+  };
 })();
 
 window.addEventListener('load', W.Game.init);
