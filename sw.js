@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'wilds-v10';
+var CACHE_VERSION = 'wilds-v11';
 
 var ASSETS = [
   './index.html',
@@ -22,6 +22,8 @@ var ASSETS = [
   './js/input.js',
   './js/player.js',
   './js/render.js',
+  './js/arrows.js',
+  './js/sfx.js',
   './js/main.js',
   './js/art.js',
   './assets/tree.png',
