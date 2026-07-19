@@ -57,10 +57,11 @@ W.Mobs = (function() {
 
     var terr = W.World.tileAt(wx, wy);
     var wolfCut = W.Time.isNight() ? W.CFG.NIGHT_WOLF_CHANCE : 0;
+    var noWolf = (W.Time.dayNo() <= 1);
     var type;
-    if (terr === T.FOREST)      type = (h3 < Math.max(0.18, wolfCut)) ? TYPE.WOLF : ((h3 < 0.70) ? TYPE.DEER : TYPE.RABBIT);
-    else if (terr === T.GRASS)  type = (h3 < Math.max(0.06, wolfCut * 0.6)) ? TYPE.WOLF : ((h3 < 0.55) ? TYPE.DEER : TYPE.RABBIT);
-    else if (terr === T.ROCK)   type = (h3 < 0.20) ? TYPE.WOLF : TYPE.RABBIT;
+    if (terr === T.FOREST)      type = (!noWolf && h3 < Math.max(0.05, wolfCut)) ? TYPE.WOLF : ((h3 < 0.70) ? TYPE.DEER : TYPE.RABBIT);
+    else if (terr === T.GRASS)  type = (!noWolf && h3 < Math.max(0.02, wolfCut * 0.6)) ? TYPE.WOLF : ((h3 < 0.55) ? TYPE.DEER : TYPE.RABBIT);
+    else if (terr === T.ROCK)   type = (!noWolf && h3 < (W.Time.isNight() ? 0.20 : 0.06)) ? TYPE.WOLF : TYPE.RABBIT;
     else return;
 
     var i, m = null;
@@ -170,7 +171,7 @@ W.Mobs = (function() {
   }
 
   /* 玩家攻擊：回傳結果物件或 null（結果物件為單一共用實例，避免每次配置） */
-  var _hit = { name: '', killed: false, dmg: 0 };
+  var _hit = { name: '', killed: false, dmg: 0, type: 0 };
 
   function attack(wx, wy, fx, fy, dmg) {
     var R = W.CFG.ATTACK_RANGE;
@@ -192,17 +193,23 @@ W.Mobs = (function() {
     }
 
     if (!best) return null;
+    return applyHit(best, dmg);
+  }
 
-    best.hp -= dmg;
-    best.hurt = 3.0;
-    _hit.name = NAMES[best.type];
+  /* 近戰與箭矢共用的結算：扣血、受擊標記、擊殺掉落。
+     只有這一份，不准另外複製一套。 */
+  function applyHit(m, dmg) {
+    m.hp -= dmg;
+    m.hurt = 3.0;
+    _hit.name = NAMES[m.type];
+    _hit.type = m.type;
     _hit.dmg = dmg;
     _hit.killed = false;
 
-    if (best.hp <= 0) {
-      best.alive = false;
+    if (m.hp <= 0) {
+      m.alive = false;
       _hit.killed = true;
-      if (best.type === TYPE.RABBIT) {
+      if (m.type === TYPE.RABBIT) {
         W.Inv.add('meat', 1);
         W.Inv.add('hide', 1);
       } else {
@@ -211,6 +218,21 @@ W.Mobs = (function() {
       }
     }
     return _hit;
+  }
+
+  /* 圓形範圍命中最近一隻（箭矢用） */
+  function hitAt(wx, wy, r, dmg) {
+    var best = null, bd = r * r, k, m, dx, dy, d2;
+    for (k = 0; k < pool.length; k++) {
+      m = pool[k];
+      if (!m.alive) continue;
+      dx = m.wx - wx;
+      dy = m.wy - wy;
+      d2 = dx * dx + dy * dy;
+      if (d2 < bd) { bd = d2; best = m; }
+    }
+    if (!best) return null;
+    return applyHit(best, dmg);
   }
 
   function count() { return pool.length; }
@@ -237,6 +259,7 @@ W.Mobs = (function() {
     TYPE: TYPE,
     update: update,
     attack: attack,
+    hitAt: hitAt,
     count: count,
     at: at,
     radius: radius,
