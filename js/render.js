@@ -8,6 +8,9 @@ W.Render = (function() {
   var sprite = null;
   var spriteReady = false;
   var walkT = 0;
+  var spriteUrl = '';
+  var sanGrad = null;
+  var sanKey = '';
   var slashT = 0;
   var slashFx = 0, slashFy = 1;
 
@@ -20,8 +23,8 @@ W.Render = (function() {
 
   var NODE_ART      = ['tree', 'rock', 'grass', 'berry', '', 'ui/mushroom'];
   var NODE_ART_DEAD = ['tree_cut', 'rock_mined', 'grass_cut', 'berry_empty', '', ''];
-  var MOB_ART       = ['deer', 'rabbit', 'wolf'];
-  var MOB_ART_MOVE  = ['deer_walk', 'rabbit_hop', 'wolf_run'];
+  var MOB_ART       = ['deer', 'rabbit', 'wolf', '', 'boar', 'bear', 'crow'];
+  var MOB_ART_MOVE  = ['deer_walk', 'rabbit_hop', 'wolf_run', '', 'boar_run', 'bear_walk', 'crow_fly'];
   var artT = 0;
 
   /* 統一的素材繪製：以腳底（sx, sy）為錨點，等比例縮放到指定世界高度 */
@@ -119,53 +122,47 @@ W.Render = (function() {
   function drawOneSite(s, sx, sy) {
     var z = W.Camera.zoom;
     var looted = W.Sites.isLooted(s);
-    var rockImg = W.Art.get('rock');
     var i, ang, px, py;
 
     if (s.type === 0) {
-      for (i = 0; i < 6; i++) {
-        ang = i * Math.PI / 3 + 0.4;
-        px = sx + Math.cos(ang) * 46 * z;
-        py = sy + Math.sin(ang) * 24 * z;
-        if (rockImg) {
-          drawArt(rockImg, px, py + 6 * z, 26, false);
+      var pillar = W.Art.get('ruin');
+      for (i = 0; i < 5; i++) {
+        ang = i * (Math.PI * 2 / 5) + 0.5;
+        px = sx + Math.cos(ang) * 52 * z;
+        py = sy + Math.sin(ang) * 26 * z;
+        if (pillar) {
+          drawArt(pillar, px, py + 4 * z, W.CFG.ART_RUIN_H, (i % 2) === 1);
         } else {
           ctx.fillStyle = '#8a8a80';
           ctx.fillRect(px - 7 * z, py - 16 * z, 14 * z, 20 * z);
         }
       }
     } else {
-      ctx.fillStyle = '#5d5b55';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy - 6 * z, 46 * z, 30 * z, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#14120f';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy + 2 * z, 24 * z, 18 * z, 0, 0, Math.PI * 2);
-      ctx.fill();
+      var cave = W.Art.get('cave');
+      if (cave) {
+        drawArt(cave, sx, sy + 10 * z, W.CFG.ART_CAVE_H, false);
+      } else {
+        ctx.fillStyle = '#5d5b55';
+        ctx.beginPath();
+        ctx.ellipse(sx, sy - 6 * z, 46 * z, 30 * z, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
-    /* 箱子 */
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(sx, sy + 8 * z, 14 * z, 5 * z, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = looted ? '#5a4a33' : '#8a6532';
-    ctx.fillRect(sx - 13 * z, sy - 12 * z, 26 * z, 20 * z);
-    ctx.fillStyle = looted ? '#6b5940' : '#a67c3d';
-    ctx.fillRect(sx - 13 * z, sy - 12 * z, 26 * z, 7 * z);
-    ctx.strokeStyle = '#3a2b17';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(sx - 13 * z, sy - 12 * z, 26 * z, 20 * z);
+    var box = W.Art.get(looted ? 'chest_open' : 'chest');
+    if (box) {
+      shadow(sx, sy + 6 * z, 13 * z, 5 * z);
+      drawArt(box, sx, sy + 8 * z, W.CFG.ART_CHEST_H, false);
+    } else {
+      ctx.fillStyle = looted ? '#5a4a33' : '#8a6532';
+      ctx.fillRect(sx - 13 * z, sy - 12 * z, 26 * z, 20 * z);
+    }
 
     if (!looted) {
-      ctx.fillStyle = '#ffd85e';
-      ctx.fillRect(sx - 3 * z, sy - 6 * z, 6 * z, 6 * z);
       ctx.strokeStyle = 'rgba(255,225,140,' + (0.45 + 0.25 * Math.sin(artT * 3)) + ')';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.ellipse(sx, sy + 6 * z, 30 * z, 14 * z, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy + 8 * z, 30 * z, 14 * z, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
@@ -209,6 +206,26 @@ W.Render = (function() {
 
   function sleepFx() { sleepT = 2.0; }
 
+  /* 理智偏低時畫面四周收暗，越低越明顯 */
+  function drawSanity() {
+    if (!W.Stats.isLowSan()) return;
+    var k = 1 - (W.Stats.sanPct() / W.CFG.SAN_LOW);
+    if (k <= 0) return;
+    var C = W.Camera;
+    /* 漸層物件依「強度級距＋視窗尺寸」快取，避免每幀重建 */
+    var step = Math.round(k * 12);
+    var key = step + '_' + Math.round(C.vw) + '_' + Math.round(C.vh);
+    if (key !== sanKey) {
+      sanKey = key;
+      sanGrad = ctx.createRadialGradient(C.vw / 2, C.vh / 2, C.vh * 0.22,
+                                         C.vw / 2, C.vh / 2, C.vh * 0.62);
+      sanGrad.addColorStop(0, 'rgba(20,0,25,0)');
+      sanGrad.addColorStop(1, 'rgba(20,0,25,' + (0.72 * (step / 12)).toFixed(3) + ')');
+    }
+    ctx.fillStyle = sanGrad;
+    ctx.fillRect(0, 0, C.vw, C.vh);
+  }
+
   function drawSleep(dt) {
     if (sleepT <= 0) return;
     sleepT -= dt;
@@ -231,12 +248,19 @@ W.Render = (function() {
     ctx.globalAlpha = 1;
   }
 
-  function loadSprite() {
+  function loadSprite(url) {
+    var want = url || W.CFG.SPRITE_URL;
+    /* 同一張就不重複請求，避免啟動時載兩次 */
+    if (sprite && spriteUrl === want) return;
+    spriteUrl = want;
+    spriteReady = false;
     sprite = new Image();
     sprite.onload = function() { spriteReady = true; };
     sprite.onerror = function() { spriteReady = false; };
-    sprite.src = W.CFG.SPRITE_URL;
+    sprite.src = want;
   }
+
+  function setSprite(url) { loadSprite(url); }
 
   function init(context) {
     ctx = context;
@@ -469,6 +493,25 @@ W.Render = (function() {
   function drawOneMob(m, sx, sy) {
     var ty = m.type;
     var z = W.Camera.zoom;
+
+    if (ty === 3) {
+      var wob = 1 + 0.08 * Math.sin(artT * 6 + m.seed);
+      ctx.fillStyle = 'rgba(10,6,18,0.82)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 12 * z, 15 * z * wob, 20 * z * wob, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(30,12,40,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 2 * z, 20 * z, 10 * z, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff5a4a';
+      ctx.beginPath();
+      ctx.arc(sx - 5 * z, sy - 16 * z, 2.6 * z, 0, Math.PI * 2);
+      ctx.arc(sx + 5 * z, sy - 16 * z, 2.6 * z, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
     var moving = (m.vx * m.vx + m.vy * m.vy) > 0.02;
     var img = W.Art.get(moving && (Math.floor(artT * W.CFG.MOB_ANIM_FPS + m.seed) % 2 === 1)
       ? MOB_ART_MOVE[ty] : MOB_ART[ty]);
@@ -540,13 +583,17 @@ W.Render = (function() {
     var z = W.Camera.zoom;
     var aimg = null;
     if (ty === 0) aimg = W.Art.get('campfire');
+    else if (ty === 1) aimg = W.Art.get('wall');
     else if (ty === 2) aimg = W.Art.get('bed');
     else if (ty === 3) aimg = W.Art.get('ui/furnace');
+    else if (ty === 4) aimg = W.Art.get('workbench');
+    else if (ty === 5) aimg = W.Art.get('crate');
+    else if (ty === 6) aimg = W.Art.get('fence');
+    else if (ty === 7) aimg = W.Art.get('rack');
 
     if (aimg) {
       shadow(sx, sy + 4 * z, 13 * z, 5 * z);
-      drawArt(aimg, sx, sy + 6 * z,
-        (ty === 0) ? W.CFG.ART_FIRE_H : ((ty === 3) ? W.CFG.ART_FURNACE_H : W.CFG.ART_BED_H), false);
+      drawArt(aimg, sx, sy + 6 * z, buildH(ty), false);
       return;
     }
 
@@ -589,6 +636,17 @@ W.Render = (function() {
       ctx.lineWidth = 2;
       ctx.strokeRect(sx - 14, sy - 8, 28, 14);
     }
+  }
+
+  function buildH(ty) {
+    if (ty === 0) return W.CFG.ART_FIRE_H;
+    if (ty === 1) return W.CFG.ART_WALL_H;
+    if (ty === 3) return W.CFG.ART_FURNACE_H;
+    if (ty === 4) return W.CFG.ART_BENCH_H;
+    if (ty === 5) return W.CFG.ART_STORE_H;
+    if (ty === 6) return W.CFG.ART_FENCE_H;
+    if (ty === 7) return W.CFG.ART_RACK_H;
+    return W.CFG.ART_BED_H;
   }
 
   function drawBuilds(before) {
@@ -809,10 +867,11 @@ W.Render = (function() {
     drawBuilds(false);
     drawSites(false);
     drawNight();
+    drawSanity();
     drawSleep(dt);
     drawHurtFlash();
     W.Minimap.draw(ctx, W.Camera.vw);
   }
 
-  return { init: init, draw: draw, slash: slash, dmgText: dmgText, sleepFx: sleepFx };
+  return { init: init, draw: draw, slash: slash, dmgText: dmgText, sleepFx: sleepFx, setSprite: setSprite };
 })();
