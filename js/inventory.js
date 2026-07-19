@@ -3,11 +3,11 @@ window.W = window.W || {};
 /* 背包：Phase 3 僅存於記憶體，Phase 5 才接存檔。 */
 W.Inv = (function() {
 
-  var ORDER = ['wood', 'stone', 'fiber', 'berry', 'flint', 'meat', 'hide', 'cooked'];
-  var LABEL = { wood: '木材', stone: '石頭', fiber: '纖維', berry: '漿果', flint: '燧石', meat: '生肉', hide: '毛皮', cooked: '烤肉' };
-  var ICON  = { wood: '\uD83E\uDEB5', stone: '\uD83E\uDEA8', fiber: '\uD83C\uDF3F', berry: '\uD83E\uDED0', flint: '\u26CF\uFE0F', meat: '\uD83E\uDD69', hide: '\uD83D\uDFEB', cooked: '\uD83C\uDF57' };
+  var ORDER = ['wood', 'stone', 'fiber', 'berry', 'flint', 'meat', 'hide', 'cooked', 'arrow'];
+  var LABEL = { wood: '木材', stone: '石頭', fiber: '纖維', berry: '漿果', flint: '燧石', meat: '生肉', hide: '毛皮', cooked: '烤肉', arrow: '箭矢' };
+  var ICON  = { wood: '\uD83E\uDEB5', stone: '\uD83E\uDEA8', fiber: '\uD83C\uDF3F', berry: '\uD83E\uDED0', flint: '\u26CF\uFE0F', meat: '\uD83E\uDD69', hide: '\uD83D\uDFEB', cooked: '\uD83C\uDF57', arrow: '\u27A4' };
 
-  var items = { wood: 0, stone: 0, fiber: 0, berry: 0, flint: 0, meat: 0, hide: 0, cooked: 0 };
+  var items = { wood: 0, stone: 0, fiber: 0, berry: 0, flint: 0, meat: 0, hide: 0, cooked: 0, arrow: 0 };
 
   function add(id, n) {
     if (items[id] === undefined) return 0;
