@@ -1,146 +1,160 @@
 window.W = window.W || {};
 
-/* 建造物：玩家放置，屬於「必須存檔」的資料類型。
+/* 合成系統。裝備狀態 gear 屬於必須存檔的資料類型，
    新增欄位時務必同步 save.js 的 collect / apply / migrate 三處。 */
-W.Build = (function() {
+W.Craft = (function() {
 
-  var TYPE = { FIRE: 0, WALL: 1, BED: 2, FURNACE: 3 };
-  var NAMES = ['\u71df\u706b', '\u6728\u7246', '\u7761\u888b', '\u7194\u7210'];
-  var BLOCKR = [0, 16, 0, 14];
+  var gear = { axe: false, pick: false, bow: false, maxe: false, mpick: false };
 
-  var list = [];
-  var _near = [];
-  var _nearN = 0;
-  var i0;
-  for (i0 = 0; i0 < 48; i0++) _near.push(null);
+  /* kind: tool = 取得裝備；place = 放置建造物；item = 產出物品
+     need: 需要站在某種建造物旁（null 代表隨處可做） */
+  var RECIPES = [
+    { id: 'axe',  name: '\u77f3\u65a7',   icon: '\uD83E\uDE93', kind: 'tool',  cost: { wood: 3, stone: 2, fiber: 2 }, desc: '\u4f10\u6728\u7522\u91cf\uff0b2\uff0c\u653b\u64ca\uff0b7' },
+    { id: 'bow',   name: '\u6728\u5f13', icon: '\uD83C\uDFF9', kind: 'tool', cost: { wood: 4, fiber: 4 }, desc: '\u81ea\u52d5\u7784\u6e96\u9060\u7a0b\u5c04\u64ca' },
+    { id: 'arrow', name: '\u7bad\u77e2', icon: '\u27A4', kind: 'item', give: { arrow: 4 }, cost: { wood: 2, flint: 1 }, desc: '\u5f13\u7684\u5f48\u85e5\uFF0C\u4e00\u6b21\u505a 4 \u652f' },
+    { id: 'pick', name: '\u77f3\u93ac',   icon: '\u26CF\uFE0F', kind: 'tool',  cost: { wood: 3, stone: 3, flint: 1 }, desc: '\u63a1\u77f3\u7522\u91cf\uff0b2' },
+    { id: 'fire', name: '\u71df\u706b',   icon: '\uD83D\uDD25', kind: 'place', place: 0, cost: { wood: 5, stone: 3 }, desc: '\u65c1\u908a\u53ef\u4ee5\u70e4\u8089' },
+    { id: 'wall', name: '\u6728\u7246',   icon: '\uD83E\uDDF1', kind: 'place', place: 1, cost: { wood: 4 }, desc: '\u963b\u64cb\u72fc\u7fa4' },
+    { id: 'bed',  name: '\u7761\u888b',   icon: '\uD83D\uDECF\uFE0F', kind: 'place', place: 2, cost: { fiber: 8, hide: 3 }, desc: '\u91cd\u65b0\u8a2d\u5b9a\u71df\u5730' },
+    { id: 'furnace', name: '\u7194\u7210', icon: '\uD83C\uDFED', kind: 'place', place: 3, cost: { stone: 12, wood: 4 }, desc: '\u65c1\u908a\u53ef\u4ee5\u7194\u7149\u91d1\u5c6c' },
+    { id: 'metal', name: '\u7194\u7149\u91d1\u5c6c', icon: '\uD83D\uDD29', kind: 'item', give: { metal: 1 }, cost: { stone: 4, flint: 2, wood: 2 }, need: 3, desc: '\u9700\u8981\u7ad9\u5728\u7194\u7210\u65c1' },
+    { id: 'maxe',  name: '\u91d1\u5c6c\u65a7', icon: '\uD83E\uDE93', kind: 'tool', cost: { metal: 2, wood: 2 }, needGear: 'axe', desc: '\u4f10\u6728\uff0b4\uff0c\u653b\u64ca\uff0b14\uff08\u9700\u5148\u6709\u77f3\u65a7\uff09' },
+    { id: 'mpick', name: '\u91d1\u5c6c\u93ac', icon: '\u26CF\uFE0F', kind: 'tool', cost: { metal: 2, wood: 2 }, needGear: 'pick', desc: '\u63a1\u77f3\uff0b4\uff08\u9700\u5148\u6709\u77f3\u93ac\uff09' },
+    { id: 'soup',  name: '\u8611\u83c7\u6e6f', icon: '\uD83C\uDF72', kind: 'item', give: { soup: 1 }, cost: { mushroom: 2, berry: 1 }, need: 0, desc: '\u9700\u8981\u71df\u706b\uff1b\u5403\u4e86\u5927\u5e45\u56de\u5fa9' },
+    { id: 'cook', name: '\u70e4\u8089',   icon: '\uD83C\uDF57', kind: 'item',  give: { cooked: 1 }, cost: { meat: 1 }, need: 0, desc: '\u9700\u8981\u7ad9\u5728\u71df\u706b\u65c1' }
+  ];
 
-  function keyOf(wx, wy) {
-    return Math.round(wx) + '|' + Math.round(wy);
-  }
+  function list() { return RECIPES; }
 
-  function add(type, wx, wy) {
-    var s = { type: type, wx: wx, wy: wy, k: keyOf(wx, wy) };
-    list.push(s);
-    return s;
-  }
-
-  function removeAt(wx, wy, r) {
-    var i, dx, dy;
-    for (i = list.length - 1; i >= 0; i--) {
-      dx = list[i].wx - wx;
-      dy = list[i].wy - wy;
-      if (dx * dx + dy * dy <= r * r) {
-        list.splice(i, 1);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function updateNear(wx, wy) {
-    var R = W.CFG.BUILD_NEAR;
-    var i, s, dx, dy;
-    _nearN = 0;
-    for (i = 0; i < list.length; i++) {
-      s = list[i];
-      dx = s.wx - wx;
-      dy = s.wy - wy;
-      if (dx * dx + dy * dy > R * R) continue;
-      if (_nearN >= _near.length) break;
-      _near[_nearN++] = s;
-    }
-  }
-
-  function blocksAt(wx, wy, pr) {
-    var i, s, br, dx, dy, t;
-    for (i = 0; i < _nearN; i++) {
-      s = _near[i];
-      br = BLOCKR[s.type];
-      if (br === 0) continue;
-      dx = s.wx - wx;
-      dy = s.wy - wy;
-      t = br + pr;
-      if (dx * dx + dy * dy < t * t) return true;
-    }
-    return false;
-  }
-
-  /* 是否站在某種建造物附近（例如營火旁才能烤肉） */
-  function nearType(wx, wy, type, range) {
-    var i, s, dx, dy;
-    for (i = 0; i < _nearN; i++) {
-      s = _near[i];
-      if (s.type !== type) continue;
-      dx = s.wx - wx;
-      dy = s.wy - wy;
-      if (dx * dx + dy * dy <= range * range) return s;
-    }
-    return null;
-  }
-
-  /* 放置點是否可用：地形可走、沒有資源節點、沒有其他建造物 */
-  function canPlace(wx, wy) {
-    if (W.World.isSolidAt(wx, wy)) return false;
-    if (W.Res.blocksAt(wx, wy, 12)) return false;
-    var i, dx, dy;
-    for (i = 0; i < _nearN; i++) {
-      dx = _near[i].wx - wx;
-      dy = _near[i].wy - wy;
-      if (dx * dx + dy * dy < 26 * 26) return false;
+  function canAfford(r) {
+    var k;
+    for (k in r.cost) {
+      if (!r.cost.hasOwnProperty(k)) continue;
+      if (W.Inv.count(k) < r.cost[k]) return false;
     }
     return true;
   }
 
-  function count() { return list.length; }
-  function at(i) { return list[i]; }
-  function nameOf(type) { return NAMES[type]; }
-
-  function exportData() {
-    var out = [], i, s;
-    for (i = 0; i < list.length; i++) {
-      s = list[i];
-      out.push([s.type, Math.round(s.wx), Math.round(s.wy)]);
+  function costText(r) {
+    var k, out = '';
+    for (k in r.cost) {
+      if (!r.cost.hasOwnProperty(k)) continue;
+      if (out) out += '\u3001';
+      out += W.Inv.label(k) + ' ' + r.cost[k];
     }
     return out;
   }
 
-  function importData(arr) {
-    var i, r;
-    list = [];
-    if (!arr || !arr.length) return;
-    for (i = 0; i < arr.length; i++) {
-      r = arr[i];
-      if (!r || r.length < 3) continue;
-      if (typeof r[1] !== 'number' || typeof r[2] !== 'number') continue;
-      if (!isFinite(r[1]) || !isFinite(r[2])) continue;
-      if (r[0] < 0 || r[0] > 3) continue;
-      add(r[0], r[1], r[2]);
+  function pay(r) {
+    var k;
+    for (k in r.cost) {
+      if (!r.cost.hasOwnProperty(k)) continue;
+      W.Inv.take(k, r.cost[k]);
     }
   }
 
-  function clear() { list = []; _nearN = 0; }
+  function byId(id) {
+    var i;
+    for (i = 0; i < RECIPES.length; i++) if (RECIPES[i].id === id) return RECIPES[i];
+    return null;
+  }
 
-  function stats() {
-    var i, c = [0, 0, 0, 0];
-    for (i = 0; i < list.length; i++) c[list[i].type]++;
-    return { total: list.length, fire: c[0], wall: c[1], bed: c[2], furnace: c[3] };
+  /* 回傳字串代表失敗原因，回傳 true 代表成功 */
+  function make(id) {
+    var r = byId(id);
+    if (!r) return '\u627e\u4e0d\u5230\u914d\u65b9';
+    if (!canAfford(r)) return '\u6750\u6599\u4e0d\u8db3';
+
+    if (r.need !== undefined && r.need !== null) {
+      if (!W.Build.nearType(W.Player.wx, W.Player.wy, r.need, W.CFG.FIRE_RANGE)) {
+        return '\u9700\u8981\u9760\u8fd1' + W.Build.nameOf(r.need);
+      }
+    }
+
+    if (r.kind === 'tool') {
+      if (gear[r.id]) return '\u5df2\u7d93\u64c1\u6709\u4e86';
+      if (r.needGear && !gear[r.needGear]) return '\u9700\u8981\u5148\u88fd\u4f5c\u524d\u7f6e\u5de5\u5177';
+      pay(r);
+      gear[r.id] = true;
+      return true;
+    }
+
+    if (r.kind === 'place') {
+      var wx = W.Player.wx + W.Player.faceX * W.CFG.PLACE_DIST;
+      var wy = W.Player.wy + W.Player.faceY * W.CFG.PLACE_DIST;
+      if (!W.Build.canPlace(wx, wy)) return '\u9019\u88e1\u653e\u4e0d\u4e0b';
+      pay(r);
+      W.Build.add(r.place, wx, wy);
+      W.Build.updateNear(W.Player.wx, W.Player.wy);
+      if (r.place === W.Build.TYPE.BED) {
+        W.Player.homeWx = wx;
+        W.Player.homeWy = wy;
+      }
+      return true;
+    }
+
+    if (r.kind === 'item') {
+      pay(r);
+      var k;
+      for (k in r.give) {
+        if (!r.give.hasOwnProperty(k)) continue;
+        W.Inv.add(k, r.give[k]);
+      }
+      return true;
+    }
+
+    return '\u672a\u77e5\u914d\u65b9\u985e\u578b';
+  }
+
+  function has(id) { return !!gear[id]; }
+
+  function attackBonus() {
+    if (gear.maxe) return W.CFG.METAL_ATK_BONUS;
+    return gear.axe ? W.CFG.AXE_ATK_BONUS : 0;
+  }
+
+  function yieldBonus(resType) {
+    if (resType === 0) {
+      if (gear.maxe) return W.CFG.METAL_YIELD_BONUS;
+      if (gear.axe) return W.CFG.TOOL_YIELD_BONUS;
+    }
+    if (resType === 1) {
+      if (gear.mpick) return W.CFG.METAL_YIELD_BONUS;
+      if (gear.pick) return W.CFG.TOOL_YIELD_BONUS;
+    }
+    return 0;
+  }
+
+  function exportData() {
+    return { axe: !!gear.axe, pick: !!gear.pick, bow: !!gear.bow, maxe: !!gear.maxe, mpick: !!gear.mpick };
+  }
+
+  function importData(o) {
+    gear.axe = !!(o && o.axe);
+    gear.pick = !!(o && o.pick);
+    gear.bow = !!(o && o.bow);
+    gear.maxe = !!(o && o.maxe);
+    gear.mpick = !!(o && o.mpick);
+  }
+
+  function clear() {
+    gear.axe = false;
+    gear.pick = false;
+    gear.bow = false;
+    gear.maxe = false;
+    gear.mpick = false;
   }
 
   return {
-    TYPE: TYPE,
-    NAMES: NAMES,
-    add: add,
-    removeAt: removeAt,
-    updateNear: updateNear,
-    blocksAt: blocksAt,
-    nearType: nearType,
-    canPlace: canPlace,
-    count: count,
-    at: at,
-    nameOf: nameOf,
+    list: list,
+    make: make,
+    has: has,
+    canAfford: canAfford,
+    costText: costText,
+    attackBonus: attackBonus,
+    yieldBonus: yieldBonus,
     exportData: exportData,
     importData: importData,
-    clear: clear,
-    stats: stats
+    clear: clear
   };
 })();
