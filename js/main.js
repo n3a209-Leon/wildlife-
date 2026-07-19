@@ -604,6 +604,27 @@ W.Game = (function() {
     document.getElementById('pb-ok').addEventListener('click', placeCarry);
     document.getElementById('pb-cancel').addEventListener('click', cancelCarry);
 
+    document.getElementById('btn-sync').addEventListener('click', function() {
+      if (!W.FIREBASE_CONFIG) {
+        showToast('\u96f2\u7aef\u672a\u8a2d\u5b9a\uff08\u9700\u586b firebase-config\uff09');
+        return;
+      }
+      if (W.Cloud.isSignedIn()) {
+        if (!window.confirm('\u8981\u767b\u51fa Google \u5e33\u865f\u55ce\uff1f\u672c\u6a5f\u5b58\u6a94\u6703\u4fdd\u7559\u3002')) return;
+        W.Cloud.signOut().then(function() { showToast('\u5df2\u767b\u51fa'); });
+      } else {
+        showToast('\u6b63\u5728\u767b\u5165 Google\u2026');
+        W.Cloud.signIn().then(function(r) { cloudResult(r, '\u767b\u5165\u6210\u529f\uff0c\u9032\u5ea6\u5df2\u540c\u6b65'); });
+      }
+    });
+
+    W.Cloud.setOnState(function(signedIn) {
+      var b = document.getElementById('btn-sync');
+      b.textContent = signedIn ? '\u2601\uFE0F' : '\u2601\uFE0F';
+      if (signedIn) { b.classList.add('on'); } else { b.classList.remove('on'); }
+      cloudLabel();
+    });
+
     document.getElementById('btn-mute').addEventListener('click', function() {
       var m = !W.Sfx.isMuted();
       W.Sfx.setMuted(m);
