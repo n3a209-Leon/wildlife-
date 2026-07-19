@@ -23,6 +23,7 @@
       <div class="bar"><span>❤️</span><div class="bar-bg"><div class="bar-fill hp" id="bar-hp"></div></div></div>
       <div class="bar"><span>🍖</span><div class="bar-bg"><div class="bar-fill food" id="bar-food"></div></div></div>
       <div class="bar"><span>⚡</span><div class="bar-bg"><div class="bar-fill stam" id="bar-stam"></div></div></div>
+      <div class="bar"><span>🧠</span><div class="bar-bg"><div class="bar-fill san" id="bar-san"></div></div></div>
     </div>
   </div>
   <div id="hud-right">
@@ -30,6 +31,7 @@
     <div class="hud-line" id="hud-time">--</div>
     <button id="btn-mute">🔊</button>
     <button id="btn-sync">☁️</button>
+    <button id="btn-diag">🔧</button>
   </div>
 </div>
 
@@ -44,7 +46,6 @@
   <button class="act-btn" id="btn-c">🎒</button>
 </div>
 
-<button id="btn-diag">🔧</button>
 <div id="bag-panel">
   <div id="bag-body"></div>
   <div id="bag-actions">
@@ -52,8 +53,18 @@
     <button class="diag-btn" id="btn-eat-meat">吃生肉</button>
     <button class="diag-btn" id="btn-eat-cooked">吃烤肉</button>
     <button class="diag-btn" id="btn-eat-soup">喝蘑菇湯</button>
+    <button class="diag-btn" id="btn-eat-jerky">吃肉乾</button>
+    <button class="diag-btn" id="btn-char">切換角色</button>
   </div>
   <button id="bag-close">關閉</button>
+</div>
+<div id="store-panel">
+  <div id="store-head">儲物箱</div>
+  <div id="store-body"></div>
+  <div id="store-actions">
+    <button class="diag-btn" id="st-all">全部存入</button>
+    <button class="diag-btn" id="st-close">關閉</button>
+  </div>
 </div>
 <div id="struct-menu">
   <div class="sm-title" id="sm-name">建物</div>
@@ -127,6 +138,7 @@ window.addEventListener('error', function(e) {
 <script src="js/rng.js"></script>
 <script src="js/world.js"></script>
 <script src="js/inventory.js"></script>
+<script src="js/store.js"></script>
 <script src="js/resources.js"></script>
 <script src="js/minimap.js"></script>
 <script src="js/save.js"></script>
