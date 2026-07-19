@@ -5,13 +5,13 @@ window.W = window.W || {};
 W.Res = (function() {
   var T = W.TERRAIN;
 
-  var TYPE = { TREE: 0, ROCK: 1, BUSH: 2, BERRY: 3, FLINT: 4 };
+  var TYPE = { TREE: 0, ROCK: 1, BUSH: 2, BERRY: 3, FLINT: 4, MUSH: 5 };
 
-  var NAMES  = ['\u6a39\u6728', '\u5ca9\u77f3', '\u8349\u53e2', '\u6f3f\u679c\u53e2', '\u71e7\u77f3'];
-  var BLOCKR = [9, 11, 0, 0, 0];
-  var ITEM   = ['wood', 'stone', 'fiber', 'berry', 'flint'];
-  var AMOUNT = [3, 3, 2, 2, 1];
-  var RESPAWN = [120000, 180000, 90000, 90000, 150000];
+  var NAMES  = ['\u6a39\u6728', '\u5ca9\u77f3', '\u8349\u53e2', '\u6f3f\u679c\u53e2', '\u71e7\u77f3', '\u591c\u5149\u8611\u83c7'];
+  var BLOCKR = [9, 11, 0, 0, 0, 0];
+  var ITEM   = ['wood', 'stone', 'fiber', 'berry', 'flint', 'mushroom'];
+  var AMOUNT = [3, 3, 2, 2, 1, 1];
+  var RESPAWN = [120000, 180000, 90000, 90000, 150000, 200000];
 
   var chunkNodes = {};
   var chunkKeys = [];
@@ -51,6 +51,9 @@ W.Res = (function() {
           if (h < 0.05) type = TYPE.FLINT;
         }
 
+        if (type < 0 && (t === T.FOREST || t === T.GRASS)) {
+          if (W.Rng.hash2i(wx + 3517, wy + 911, W.CFG.SEED + 6001) < W.CFG.MUSH_CHANCE) type = TYPE.MUSH;
+        }
         if (type < 0) continue;
 
         jx = W.Rng.hash2i(wx + 7,  wy + 3,  W.CFG.SEED + 55) * (TS - 14) + 7;
@@ -82,6 +85,7 @@ W.Res = (function() {
   }
 
   function isAlive(node, now) {
+    if (node.type === TYPE.MUSH && !W.Time.isNight()) return false;
     var r = taken[node.k];
     if (r === undefined) return true;
     if (now >= r) { delete taken[node.k]; takenCount--; return true; }
