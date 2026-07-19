@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'wilds-v19';
+var CACHE_VERSION = 'wilds-v20';
 
 var ASSETS = [
   './index.html',
