@@ -13,6 +13,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="boot-err"></div>
 
 <div id="hud">
   <div id="hud-left">
@@ -50,6 +51,7 @@
     <button class="diag-btn" id="btn-eat-berry">吃漿果</button>
     <button class="diag-btn" id="btn-eat-meat">吃生肉</button>
     <button class="diag-btn" id="btn-eat-cooked">吃烤肉</button>
+    <button class="diag-btn" id="btn-eat-soup">喝蘑菇湯</button>
   </div>
   <button id="bag-close">關閉</button>
 </div>
@@ -92,6 +94,30 @@
   <button id="diag-close">關閉</button>
 </div>
 
+<script>
+/* 手機上沒有 console，任何載入期錯誤直接顯示在畫面上。
+   這段必須早於所有模組，才攔得到模組本身的載入錯誤。 */
+window.__wildsErr = function(msg) {
+  try {
+    var el = document.getElementById('boot-err');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'boot-err';
+      document.body.appendChild(el);
+    }
+    el.style.display = 'block';
+    el.textContent = (el.textContent ? el.textContent + '\n' : '') + msg;
+  } catch (e) {}
+};
+window.addEventListener('error', function(e) {
+  var f = (e.filename || '').split('/').pop();
+  if (e.target && e.target.tagName === 'SCRIPT') {
+    window.__wildsErr('\u2717 \u6a94\u6848\u8f09\u5165\u5931\u6557\uff1a' + (e.target.src || '').split('/').slice(-2).join('/'));
+    return;
+  }
+  window.__wildsErr('\u2717 ' + (e.message || 'error') + '\n   ' + f + ':' + (e.lineno || 0));
+}, true);
+</script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -108,6 +134,7 @@
 <script src="js/mobs.js"></script>
 <script src="js/arrows.js"></script>
 <script src="js/build.js"></script>
+<script src="js/sites.js"></script>
 <script src="js/craft.js"></script>
 <script src="js/time.js"></script>
 <script src="js/cloud.js"></script>
