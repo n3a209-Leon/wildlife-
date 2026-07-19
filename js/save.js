@@ -9,7 +9,7 @@ W.Save = (function() {
   var DB_NAME = 'wilds';
   var STORE = 'kv';
   var KEY = 'save';
-  var VERSION = 5;
+  var VERSION = 6;
 
   var db = null;
   var ok = false;
@@ -118,7 +118,8 @@ W.Save = (function() {
       gear: W.Craft.exportData(),
       builds: W.Build.exportData(),
       time: W.Time.exportData(),
-      sites: W.Sites.exportData()
+      sites: W.Sites.exportData(),
+      store: W.Store.exportData()
     };
   }
 
@@ -142,6 +143,7 @@ W.Save = (function() {
     W.Build.importData(data.builds);
     W.Time.importData(data.time);
     W.Sites.importData(data.sites);
+    W.Store.importData(data.store);
     if (data.home && isFinite(data.home.wx) && isFinite(data.home.wy)) {
       W.Player.homeWx = data.home.wx;
       W.Player.homeWy = data.home.wy;
@@ -192,6 +194,13 @@ W.Save = (function() {
       v = 5;
     }
 
+    if (v === 5) {
+      /* v5 沒有倉庫，視為空倉庫 */
+      if (!data.store) data.store = {};
+      data.v = 6;
+      v = 6;
+    }
+
     /* 種子不同代表是另一個世界，座標與採集狀態不可沿用，只保留背包 */
     if (data.seed !== W.CFG.SEED) {
       data.player = null;
@@ -199,6 +208,7 @@ W.Save = (function() {
       data.home = null;
       data.builds = [];
       data.sites = [];
+      data.store = {};
     }
 
     if (v > VERSION) return null;
@@ -250,6 +260,7 @@ W.Save = (function() {
     W.Build.clear();
     W.Time.clear();
     W.Sites.clear();
+    W.Store.clear();
     lastSaved = 0;
     return remove();
   }
