@@ -8,7 +8,7 @@ W.Game = (function() {
   var hudTimer = 0;
   var frame = 0;
   var elToast, toastT = 0;
-  var elHp, elFood, elStam, elTime;
+  var elHp, elFood, elStam, elSan, elTime;
   var deadT = 0;
   var craftOpen = false;
 
@@ -34,6 +34,7 @@ W.Game = (function() {
     elHp.style.width   = (W.Stats.hpPct() * 100).toFixed(0) + '%';
     elFood.style.width = (W.Stats.foodPct() * 100).toFixed(0) + '%';
     elStam.style.width = (W.Stats.stamPct() * 100).toFixed(0) + '%';
+    if (elSan) elSan.style.width = (W.Stats.sanPct() * 100).toFixed(0) + '%';
     elTime.textContent = '\u7b2c ' + W.Time.dayNo() + ' \u5929 ' + W.Time.clock() + ' \u00b7 ' + W.Time.phase();
   }
 
@@ -49,6 +50,16 @@ W.Game = (function() {
     if (toastT <= 0) { elToast.style.opacity = '0'; }
   }
 
+  function craftIcon(r) {
+    var map = { axe: 'ui/axe', pick: 'ui/pick', maxe: 'ui/axe', mpick: 'ui/pick',
+                fire: 'ui/campfire', furnace: 'ui/furnace', metal: 'ui/metal',
+                soup: 'ui/soup', cook: 'ui/cooked', arrow: 'ui/arrow',
+                bench: 'workbench', store: 'crate', wall: 'wall', fence: 'fence',
+                rack: 'rack', bed: 'bed', jerky: 'ui/jerky' };
+    if (map[r.id]) return '<img class="itm-img" src="' + W.CFG.ART_DIR + map[r.id] + '.png" alt="">';
+    return r.icon;
+  }
+
   function renderCraft() {
     var el = document.getElementById('craft-list');
     var rs = W.Craft.list();
@@ -59,7 +70,7 @@ W.Game = (function() {
       own = (r.kind === 'tool' && W.Craft.has(r.id));
       ok = W.Craft.canAfford(r) && !own;
       html += '<div class="craft-row' + (ok ? '' : ' no') + '">'
-           +    '<div class="craft-icon">' + r.icon + '</div>'
+           +    '<div class="craft-icon">' + craftIcon(r) + '</div>'
            +    '<div class="craft-info">' + r.name
            +      '<div class="craft-cost">' + W.Craft.costText(r) + '</div>'
            +      '<div class="' + (own ? 'craft-owned' : 'craft-cost') + '">'
@@ -95,9 +106,97 @@ W.Game = (function() {
     }
   }
 
+  var _charIdx = 0;
+
+  function loadCharPref() {
+    var v = 0;
+    try { v = parseInt(window.localStorage.getItem('wilds:char') || '0', 10); } catch (e) {}
+    if (!(v >= 0 && v < W.CFG.SPRITE_LIST.length)) v = 0;
+    _charIdx = v;
+    W.Render.setSprite(W.CFG.SPRITE_LIST[_charIdx]);
+  }
+
+  function nextChar() {
+    _charIdx = (_charIdx + 1) % W.CFG.SPRITE_LIST.length;
+    W.Render.setSprite(W.CFG.SPRITE_LIST[_charIdx]);
+    try { window.localStorage.setItem('wilds:char', String(_charIdx)); } catch (e) {}
+    showToast(W.CFG.SPRITE_NAMES[_charIdx]);
+  }
+
+  function nearStore() {
+    return W.Build.nearType(W.Player.wx, W.Player.wy, W.Build.TYPE.STORE, W.CFG.STORE_RANGE);
+  }
+
+  /* 物品圖示：有圖用圖，沒有的用 emoji 頂著，兩者尺寸一致 */
+  function iconHtml(id) {
+    var src = W.Inv.img(id);
+    if (src) return '<img class="itm-img" src="' + src + '" alt="">';
+    return '<span class="itm-emo">' + W.Inv.icon(id) + '</span>';
+  }
+
+  function renderStore() {
+    var ids = W.Inv.ORDER, html = '', i, id, inBag, inBox;
+    for (i = 0; i < ids.length; i++) {
+      id = ids[i];
+      inBag = W.Inv.count(id);
+      inBox = W.Store.count(id);
+      if (!inBag && !inBox) continue;
+      html += '<div class="st-row">'
+           +   iconHtml(id)
+           +   '<span class="st-name">' + W.Inv.label(id) + '</span>'
+           +   '<span>\u80cc ' + inBag + ' / \u7bb1 ' + inBox + '</span>'
+           +   '<button class="st-btn" data-dep="' + id + '">\u5b58</button>'
+           +   '<button class="st-btn" data-wd="' + id + '">\u53d6</button>'
+           +  '</div>';
+    }
+    if (!html) html = '<div class="st-row">\u80cc\u5305\u8207\u7bb1\u5b50\u90fd\u662f\u7a7a\u7684</div>';
+    document.getElementById('store-body').innerHTML = html;
+    document.getElementById('store-head').textContent =
+      '\u5132\u7269\u7bb1\uff08' + W.Store.total() + ' / ' + W.CFG.STORE_CAP +
+      '\uff09\u3000\u80cc\u5305 ' + W.Inv.total() + ' / ' + W.Inv.cap();
+  }
+
+  function openStore() {
+    renderStore();
+    document.getElementById('store-panel').classList.add('open');
+  }
+
+  function onStoreClick(e) {
+    var el = e.target;
+    if (!el || !el.getAttribute) return;
+    var dep = el.getAttribute('data-dep');
+    var wd = el.getAttribute('data-wd');
+    if (dep) {
+      var n = W.Store.deposit(dep, W.Inv.count(dep));
+      showToast(n ? ('\u5b58\u5165 ' + W.Inv.label(dep) + ' \u00d7' + n) : '\u7bb1\u5b50\u6eff\u4e86');
+      renderStore();
+    } else if (wd) {
+      var m = W.Store.withdraw(wd, W.Store.count(wd));
+      showToast(m ? ('\u53d6\u51fa ' + W.Inv.label(wd) + ' \u00d7' + m) : '\u80cc\u5305\u6eff\u4e86');
+      renderStore();
+    }
+  }
+
+  function bagHtml() {
+    var ids = W.Inv.ORDER, html = '', i, id, n;
+    html += '<div class="bag-head">\u80cc\u5305\uff08' + W.Inv.total() + ' / ' + W.Inv.cap() + '\uff09</div>';
+    for (i = 0; i < ids.length; i++) {
+      id = ids[i];
+      n = W.Inv.count(id);
+      if (!n) continue;
+      html += '<div class="st-row">' + iconHtml(id)
+           +   '<span class="st-name">' + W.Inv.label(id) + '</span>'
+           +   '<span>\u00d7 ' + n + '</span>'
+           +  '</div>';
+    }
+    if (ids.length && html.indexOf('st-row') < 0) {
+      html += '<div class="st-row">\u80cc\u5305\u662f\u7a7a\u7684</div>';
+    }
+    return html;
+  }
+
   function openBag() {
-    document.getElementById('bag-body').textContent =
-      '\u80cc\u5305\uff08\u5171 ' + W.Inv.total() + ' \u4ef6\uff09\n\n' + W.Inv.summary();
+    document.getElementById('bag-body').innerHTML = bagHtml();
     document.getElementById('bag-panel').classList.add('open');
   }
 
@@ -138,6 +237,16 @@ W.Game = (function() {
 
     var mode, icon;
     var P = W.Player;
+
+    if (nearStore()) {
+      if (_btnMode !== 'store') {
+        _btnMode = 'store';
+        _btnA.textContent = '\uD83D\uDDC3\uFE0F';
+        _btnA.style.opacity = '1';
+        _btnA.style.transform = 'scale(1.12)';
+      }
+      return;
+    }
 
     if (W.Sites && W.Sites.chestAt(P.wx, P.wy)) {
       if (_btnMode !== 'loot') {
@@ -183,6 +292,8 @@ W.Game = (function() {
 
   function doAction() {
     if (W.Stats.isDead()) return;
+
+    if (nearStore()) { openStore(); return; }
 
     var chest = W.Sites ? W.Sites.chestAt(W.Player.wx, W.Player.wy) : null;
     if (chest) {
@@ -235,13 +346,13 @@ W.Game = (function() {
     doHarvest();
   }
 
-  function eat(id, foodAdd, hpDelta) {
+  function eat(id, foodAdd, hpDelta, sanDelta) {
     if (!W.Inv.take(id, 1)) { showToast('\u6c92\u6709' + W.Inv.label(id)); return; }
     W.Stats.eat(foodAdd, hpDelta);
+    if (sanDelta) W.Stats.addSan(sanDelta);
     if (W.Sfx) W.Sfx.eat();
     showToast('\u5403\u4e86' + W.Inv.label(id) + '\uff0c\u98fd\u98df \uff0b' + foodAdd);
-    document.getElementById('bag-body').textContent =
-      '\u80cc\u5305\uff08\u5171 ' + W.Inv.total() + ' \u4ef6\uff09\n\n' + W.Inv.summary();
+    document.getElementById('bag-body').innerHTML = bagHtml();
   }
 
   function doSleep() {
@@ -257,6 +368,7 @@ W.Game = (function() {
       showToast('\u592a\u9913\u4e86\uff0c\u7761\u4e0d\u7740\uff08\u9700\u8981\u98fd\u98df ' + W.CFG.SLEEP_FOOD + '\uff09');
       return;
     }
+    W.Stats.addSan(W.CFG.SAN_SLEEP);
     W.Render.sleepFx();
     if (W.Sfx) W.Sfx.sleep();
     W.Time.skipToDawn();
@@ -437,6 +549,7 @@ W.Game = (function() {
   function doHarvest() {
     var r = W.Player.harvest(Date.now());
     if (!r) { showToast('\u9644\u8fd1\u6c92\u6709\u53ef\u63a1\u96c6\u7684\u6771\u897f'); return; }
+    if (W.Inv.isFull()) { showToast('\u80cc\u5305\u6eff\u4e86\uff0c\u56de\u5132\u7269\u7bb1\u5378\u8ca8'); }
     if (W.Sfx) W.Sfx.harvest();
     showToast(r.name + ' \uff0b' + W.Inv.label(r.item) + ' \u00d7' + r.n);
   }
@@ -554,6 +667,10 @@ W.Game = (function() {
       '',
       '\u7d20\u6750\u8f09\u5165     : ' + ar.loaded + ' / ' + ar.total + '\uff08\u5931\u6557 ' + ar.failed + '\uff09',
       '',
+      '\u7406\u667a         : ' + W.Stats.san().toFixed(0) + ' / 100' + (W.Stats.isLowSan() ? '\uff08\u904e\u4f4e\uff01\u9670\u5f71\u51fa\u6c92\uff09' : ''),
+      '\u80cc\u5305         : ' + W.Inv.total() + ' / ' + W.Inv.cap(),
+      '\u5132\u7269\u7bb1     : ' + W.Store.total() + ' / ' + W.CFG.STORE_CAP,
+      '\u9670\u5f71\u6578\u91cf     : ' + (ms.shadows || 0),
       '\u9130\u8fd1\u907a\u8de1     : ' + ss.near + '\uff08\u5df2\u641c\u5237 ' + ss.looted + ' \u5ea7\uff09',
       '',
       '--- \u96f2\u7aef (Phase 8) ---',
@@ -604,7 +721,7 @@ W.Game = (function() {
     ['Input', 'input.js'], ['Player', 'player.js'], ['Render', 'render.js'],
     ['Save', 'save.js'], ['Stats', 'stats.js'], ['Mobs', 'mobs.js'],
     ['Arrows', 'arrows.js'], ['Minimap', 'minimap.js'], ['Art', 'art.js'],
-    ['Cloud', 'cloud.js'], ['Sfx', 'sfx.js'], ['Sites', 'sites.js']
+    ['Cloud', 'cloud.js'], ['Sfx', 'sfx.js'], ['Sites', 'sites.js'], ['Store', 'store.js']
   ];
 
   function checkModules() {
@@ -651,9 +768,11 @@ W.Game = (function() {
     elHp    = document.getElementById('bar-hp');
     elFood  = document.getElementById('bar-food');
     elStam  = document.getElementById('bar-stam');
+    elSan   = document.getElementById('bar-san');
     elTime  = document.getElementById('hud-time');
 
     W.Render.init(ctx);
+    loadCharPref();
     W.Input.init();
     resize();
     W.Camera.snapTo(W.Player.wx, W.Player.wy);
@@ -666,11 +785,11 @@ W.Game = (function() {
     on('btn-a', 'pointerdown', function(e) { e.preventDefault(); doAction(); });
 
     on('btn-eat-berry', 'click', function() {
-      eat('berry', W.CFG.EAT_BERRY_FOOD, 0);
+      eat('berry', W.CFG.EAT_BERRY_FOOD, 0, 0);
     });
 
     on('btn-eat-meat', 'click', function() {
-      eat('meat', W.CFG.EAT_MEAT_FOOD, W.CFG.EAT_MEAT_HP);
+      eat('meat', W.CFG.EAT_MEAT_FOOD, W.CFG.EAT_MEAT_HP, W.CFG.SAN_RAW);
     });
 
     on('btn-b', 'pointerdown', function(e) {
@@ -747,11 +866,29 @@ W.Game = (function() {
     on('craft-list', 'click', onCraftClick);
 
     on('btn-eat-cooked', 'click', function() {
-      eat('cooked', W.CFG.EAT_COOKED_FOOD, W.CFG.EAT_COOKED_HP);
+      eat('cooked', W.CFG.EAT_COOKED_FOOD, W.CFG.EAT_COOKED_HP, W.CFG.SAN_COOKED);
     });
 
     on('btn-eat-soup', 'click', function() {
-      eat('soup', W.CFG.EAT_SOUP_FOOD, W.CFG.EAT_SOUP_HP);
+      eat('soup', W.CFG.EAT_SOUP_FOOD, W.CFG.EAT_SOUP_HP, W.CFG.SAN_SOUP);
+    });
+
+    on('btn-eat-jerky', 'click', function() {
+      eat('jerky', W.CFG.EAT_JERKY_FOOD, W.CFG.EAT_JERKY_HP, W.CFG.SAN_JERKY);
+    });
+
+    on('btn-char', 'click', nextChar);
+
+    on('store-body', 'click', onStoreClick);
+
+    on('st-all', 'click', function() {
+      var n = W.Store.depositAll();
+      showToast(n ? ('\u5b58\u5165 ' + n + ' \u4ef6') : '\u6c92\u6709\u53ef\u5b58\u7684\u6771\u897f');
+      renderStore();
+    });
+
+    on('st-close', 'click', function() {
+      document.getElementById('store-panel').classList.remove('open');
     });
 
     on('bag-close', 'click', function() {
