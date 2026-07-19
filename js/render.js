@@ -46,6 +46,122 @@ W.Render = (function() {
     ctx.fill();
   }
 
+  var DMG_MAX = 10;
+  var dmgPool = [];
+  (function() {
+    var k;
+    for (k = 0; k < DMG_MAX; k++) {
+      dmgPool.push({ on: false, wx: 0, wy: 0, t: 0, txt: '' });
+    }
+  })();
+
+  var sleepT = 0;
+  var _cg = { wx: 0, wy: 0 };
+
+  function dmgText(wx, wy, txt) {
+    var k;
+    for (k = 0; k < DMG_MAX; k++) {
+      if (!dmgPool[k].on) {
+        dmgPool[k].on = true;
+        dmgPool[k].wx = wx;
+        dmgPool[k].wy = wy;
+        dmgPool[k].t = 0.7;
+        dmgPool[k].txt = txt;
+        return;
+      }
+    }
+  }
+
+  function drawDmg(dt) {
+    var k, d, a;
+    for (k = 0; k < DMG_MAX; k++) {
+      d = dmgPool[k];
+      if (!d.on) continue;
+      d.t -= dt;
+      if (d.t <= 0) { d.on = false; continue; }
+      d.wy -= 46 * dt;
+      W.Camera.worldToScreenInto(d.wx, d.wy, _p);
+      a = Math.min(1, d.t / 0.25);
+      ctx.font = 'bold ' + Math.round(15 * W.Camera.zoom) + 'px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.strokeStyle = 'rgba(0,0,0,' + (0.8 * a) + ')';
+      ctx.lineWidth = 3;
+      ctx.strokeText(d.txt, _p.sx, _p.sy);
+      ctx.fillStyle = 'rgba(255,120,90,' + a + ')';
+      ctx.fillText(d.txt, _p.sx, _p.sy);
+    }
+  }
+
+  function drawArrow(a) {
+    W.Camera.worldToScreenInto(a.wx, a.wy, _p);
+    var z = W.Camera.zoom;
+    var ang = Math.atan2(a.vy, a.vx);
+    ctx.save();
+    ctx.translate(_p.sx, _p.sy);
+    ctx.rotate(ang);
+    ctx.strokeStyle = '#d8c690';
+    ctx.lineWidth = 3 * z;
+    ctx.beginPath();
+    ctx.moveTo(-10 * z, 0);
+    ctx.lineTo(8 * z, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#eee';
+    ctx.beginPath();
+    ctx.moveTo(12 * z, 0);
+    ctx.lineTo(5 * z, -3 * z);
+    ctx.lineTo(5 * z, 3 * z);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCarryGhost() {
+    if (!W.Game || !W.Game.carryGhost) return;
+    var ty = W.Game.carryGhost(_cg);
+    if (!ty) return;
+    W.Camera.worldToScreenInto(_cg.wx, _cg.wy, _p);
+    var z = W.Camera.zoom;
+    var ok = W.Build.canPlace(_cg.wx, _cg.wy);
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = ok ? 'rgba(120,220,120,0.9)' : 'rgba(230,90,80,0.9)';
+    ctx.beginPath();
+    ctx.arc(_p.sx, _p.sy, 24 * z, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = ok ? '#9f9' : '#f99';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(_p.sx, _p.sy, 26 * z, 0, Math.PI * 2);
+    ctx.stroke();
+    /* 用完務必清掉，否則整張畫面的線條都會變虛線 */
+    ctx.setLineDash([]);
+  }
+
+  function sleepFx() { sleepT = 2.0; }
+
+  function drawSleep(dt) {
+    if (sleepT <= 0) return;
+    sleepT -= dt;
+    var P = W.Player;
+    W.Camera.worldToScreenInto(P.wx, P.wy, _p);
+    var z = W.Camera.zoom;
+    var k = 1 - sleepT / 2.0;
+
+    ctx.fillStyle = 'rgba(10,10,30,' + (0.5 * Math.sin(Math.min(1, k * 2) * Math.PI)) + ')';
+    ctx.fillRect(0, 0, W.Camera.vw, W.Camera.vh);
+
+    ctx.globalAlpha = Math.min(1, sleepT);
+    ctx.fillStyle = '#cfe0ff';
+    ctx.font = 'bold ' + Math.round((14 + k * 10) * z) + 'px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('Z', _p.sx + (14 + k * 22) * z, _p.sy - (60 + k * 40) * z);
+    ctx.font = 'bold ' + Math.round((10 + k * 8) * z) + 'px -apple-system, sans-serif';
+    ctx.fillText('z', _p.sx + (4 + k * 12) * z, _p.sy - (48 + k * 26) * z);
+    ctx.globalAlpha = 1;
+  }
+
   function loadSprite() {
     sprite = new Image();
     sprite.onload = function() { spriteReady = true; };
@@ -506,6 +622,11 @@ W.Render = (function() {
 
     if (P.moving) { walkT += dt; } else { walkT = 0; }
 
+    /* 揮擊瞬間朝面向方向前傾再彈回 */
+    var lungeK = (slashT > 0) ? (slashT / 0.16) : 0;
+    var lx = P.faceX * 7 * z * lungeK;
+    var ly = P.faceY * 7 * z * lungeK;
+
     var row, flip = false;
     if (Math.abs(P.faceY) >= Math.abs(P.faceX)) {
       row = (P.faceY >= 0) ? 0 : 1;
@@ -519,12 +640,12 @@ W.Render = (function() {
     var C = W.CFG.SPRITE_CELL;
     var h = W.CFG.SPRITE_H * z;
     var w = h;
-    var dx = _p.sx - w / 2;
-    var dy = _p.sy + r * 0.7 - h + (W.CFG.SPRITE_FOOT / C) * h;
+    var dx = _p.sx + lx - w / 2;
+    var dy = _p.sy + ly + r * 0.7 - h + (W.CFG.SPRITE_FOOT / C) * h;
 
     if (flip) {
       ctx.save();
-      ctx.translate(_p.sx, 0);
+      ctx.translate(_p.sx + lx, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(sprite, col * C, row * C, C, C, -w / 2, dy, w, h);
       ctx.restore();
@@ -587,15 +708,19 @@ W.Render = (function() {
     drawBuilds(true);
     drawNodes(true);
     drawMobs(true);
+    W.Arrows.each(drawArrow);
     drawPlayer(dt);
     drawSlash(dt);
+    drawCarryGhost();
+    drawDmg(dt);
     drawMobs(false);
     drawNodes(false);
     drawBuilds(false);
     drawNight();
+    drawSleep(dt);
     drawHurtFlash();
     W.Minimap.draw(ctx, W.Camera.vw);
   }
 
-  return { init: init, draw: draw, slash: slash };
+  return { init: init, draw: draw, slash: slash, dmgText: dmgText, sleepFx: sleepFx };
 })();
