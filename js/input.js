@@ -6,6 +6,9 @@ W.Input = (function() {
   var ox = 0, oy = 0;
   var keys = {};
   var elBase = null, elKnob = null;
+  var tapPend = false;
+  var tapSX = 0, tapSY = 0;
+  var tapT0 = 0, tapX0 = 0, tapY0 = 0, tapId = null;
 
   /* iOS 上對 touchstart 呼叫 preventDefault 會抑制後續的 click 事件，
      導致所有按鈕失效（滑鼠不受影響，所以電腦上測不出來）。
@@ -63,6 +66,12 @@ W.Input = (function() {
         ox = t.clientX;
         oy = t.clientY;
         showJoy(ox, oy);
+      } else if (tapId === null && t.clientX >= window.innerWidth * W.CFG.JOY_ZONE) {
+        /* 右半螢幕的輕點：用來點選建物 */
+        tapId = t.identifier;
+        tapT0 = performance.now();
+        tapX0 = t.clientX;
+        tapY0 = t.clientY;
       }
     }
     e.preventDefault();
@@ -94,6 +103,15 @@ W.Input = (function() {
         moveX = 0;
         moveY = 0;
         hideJoy();
+      }
+      if (tapId !== null && t.identifier === tapId) {
+        var mv = Math.abs(t.clientX - tapX0) + Math.abs(t.clientY - tapY0);
+        if (performance.now() - tapT0 < 300 && mv < 14) {
+          tapPend = true;
+          tapSX = t.clientX;
+          tapSY = t.clientY;
+        }
+        tapId = null;
       }
     }
     e.preventDefault();
@@ -145,7 +163,7 @@ W.Input = (function() {
     window.addEventListener('touchstart',  onStart, opt);
     window.addEventListener('touchmove',   onMove,  opt);
     window.addEventListener('touchend',    onEnd,   opt);
-    window.addEventListener('touchcancel', onEnd,   opt);
+    window.addEventListener('touchcancel', function(e) { tapId = null; onEnd(e); }, opt);
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup',   onMouseUp);
@@ -159,6 +177,13 @@ W.Input = (function() {
     update: readKeys,
     getX: function() { return moveX; },
     getY: function() { return moveY; },
-    isActive: function() { return joyOn || mouseDown; }
+    isActive: function() { return joyOn || mouseDown; },
+    consumeTap: function(out) {
+      if (!tapPend) return false;
+      tapPend = false;
+      out.sx = tapSX;
+      out.sy = tapSY;
+      return true;
+    }
   };
 })();
