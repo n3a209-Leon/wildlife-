@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'wilds-v15';
+var CACHE_VERSION = 'wilds-v19';
 
 var ASSETS = [
   './index.html',
@@ -8,6 +8,7 @@ var ASSETS = [
   './js/rng.js',
   './js/world.js',
   './js/inventory.js',
+  './js/store.js',
   './js/resources.js',
   './js/minimap.js',
   './js/save.js',
@@ -63,6 +64,29 @@ var ASSETS = [
   './assets/ui/stones.png',
   './assets/ui/wood.png',
   './assets/ui/workbench.png',
+  './assets/wall.png',
+  './assets/chest.png',
+  './assets/chest_open.png',
+  './assets/ruin.png',
+  './assets/cave.png',
+  './assets/crate.png',
+  './assets/fence.png',
+  './assets/rack.png',
+  './assets/boar.png',
+  './assets/boar_run.png',
+  './assets/bear.png',
+  './assets/bear_walk.png',
+  './assets/crow.png',
+  './assets/crow_fly.png',
+  './assets/ui/flint.png',
+  './assets/ui/meat.png',
+  './assets/ui/cooked.png',
+  './assets/ui/hide.png',
+  './assets/ui/arrow.png',
+  './assets/ui/metal.png',
+  './assets/ui/soup.png',
+  './assets/ui/jerky.png',
+  './assets/player2.png',
   './assets/player.png'
 ];
 
