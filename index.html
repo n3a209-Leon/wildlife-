@@ -26,6 +26,7 @@
   <div id="hud-right">
     <div class="hud-line" id="hud-fps">-- FPS</div>
     <div class="hud-line" id="hud-time">--</div>
+    <button id="btn-mute">🔊</button>
   </div>
 </div>
 
@@ -49,6 +50,16 @@
     <button class="diag-btn" id="btn-eat-cooked">吃烤肉</button>
   </div>
   <button id="bag-close">關閉</button>
+</div>
+<div id="struct-menu">
+  <div class="sm-title" id="sm-name">建物</div>
+  <button id="sm-move">📦 移動</button>
+  <button id="sm-store">🎒 收納（退回材料）</button>
+  <button id="sm-cancel">關閉</button>
+</div>
+<div id="place-bar">
+  <button id="pb-ok">✅ 放置</button>
+  <button id="pb-cancel">↩️ 取消</button>
 </div>
 <div id="goal-card">
   <div class="gc-title">歡迎來到荒野</div>
@@ -84,6 +95,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 <script src="js/config.js"></script>
+<script src="js/sfx.js"></script>
 <script src="js/rng.js"></script>
 <script src="js/world.js"></script>
 <script src="js/inventory.js"></script>
@@ -92,6 +104,7 @@
 <script src="js/save.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/mobs.js"></script>
+<script src="js/arrows.js"></script>
 <script src="js/build.js"></script>
 <script src="js/craft.js"></script>
 <script src="js/time.js"></script>
