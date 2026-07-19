@@ -25,7 +25,6 @@ html, body {
   text-shadow:0 1px 3px rgba(0,0,0,.8);
   font-variant-numeric:tabular-nums;
 }
-#hud-right { text-align:right; }
 
 #joy-base {
   position:absolute; width:120px; height:120px;
@@ -57,10 +56,11 @@ html, body {
 .act-btn { transition: transform .1s, filter .1s, opacity .18s; }
 .act-btn:active { background:rgba(255,255,255,.22); }
 
+#hud-right {
+  display:flex; flex-direction:column; align-items:flex-end; gap:6px;
+}
 #btn-diag {
-  position:absolute; z-index:30;
-  right:calc(env(safe-area-inset-right) + 12px);
-  top:calc(env(safe-area-inset-top) + 44px);
+  pointer-events:auto;
   width:44px; height:44px; border-radius:50%;
   border:1px solid rgba(255,255,255,.2);
   background:rgba(0,0,0,.4); font-size:18px;
@@ -207,7 +207,7 @@ button.btn-pop { animation: btnpop .18s ease-out; }
 
 #btn-mute, #btn-sync {
   pointer-events:auto;
-  width:44px; height:44px; margin-top:6px; margin-left:auto;
+  width:44px; height:44px;
   display:block; border-radius:50%;
   border:1px solid rgba(255,255,255,.2);
   background:rgba(0,0,0,.4); font-size:18px;
@@ -262,3 +262,35 @@ button.btn-pop { animation: btnpop .18s ease-out; }
   font-family:ui-monospace,Menlo,monospace;
   white-space:pre-wrap; max-height:42vh; overflow-y:auto;
 }
+
+.bar-fill.san { background:#9a7fd0; }
+
+#store-panel {
+  position:absolute; inset:0; z-index:9500;
+  display:none; flex-direction:column;
+  background:rgba(10,14,9,.96);
+  padding:calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 20px) 18px;
+}
+#store-panel.open { display:flex; }
+#store-head { color:#ffe89a; font-size:18px; margin-bottom:12px; }
+#store-body { flex:1; overflow-y:auto; }
+.st-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; margin-bottom:8px;
+  border-radius:10px; background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  color:#e6efdb; font-size:15px;
+}
+.st-name { flex:1; }
+.st-btn {
+  width:56px; height:40px; border-radius:8px;
+  border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.1); color:#e6efdb; font-size:14px;
+}
+#store-actions { display:flex; gap:8px; margin-top:12px; }
+
+.itm-img { width:34px; height:34px; object-fit:contain; flex:none; }
+.itm-emo { font-size:24px; width:34px; text-align:center; flex:none; }
+.craft-icon .itm-img { width:32px; height:32px; }
+.bag-head { color:#ffe89a; font-size:16px; margin-bottom:10px; }
+#bag-body { white-space:normal; }
