@@ -21,6 +21,7 @@ W.Art = (function() {
   var ready = {};
   var loaded = 0;
   var failed = 0;
+  var failedNames = [];
   var started = false;
 
   function load() {
@@ -37,7 +38,11 @@ W.Art = (function() {
   function mk(name) {
     var im = new Image();
     im.onload = function() { ready[name] = true; loaded++; };
-    im.onerror = function() { ready[name] = false; failed++; };
+    im.onerror = function() {
+      ready[name] = false;
+      failed++;
+      failedNames.push(name);
+    };
     im.src = W.CFG.ART_DIR + name + '.png';
     return im;
   }
@@ -48,7 +53,7 @@ W.Art = (function() {
   }
 
   function stats() {
-    return { total: NAMES.length, loaded: loaded, failed: failed };
+    return { total: NAMES.length, loaded: loaded, failed: failed, names: failedNames };
   }
 
   return { load: load, get: get, stats: stats };
