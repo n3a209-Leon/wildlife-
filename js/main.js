@@ -267,8 +267,9 @@ W.Game = (function() {
   }
 
   function cloudLabel() {
-    document.getElementById('btn-cloud').textContent =
-      W.Cloud.isSignedIn() ? '\u96f2\u7aef\u767b\u51fa' : '\u96f2\u7aef\u767b\u5165';
+    var b = document.getElementById('btn-cloud');
+    if (!b) return;
+    b.textContent = W.Cloud.isSignedIn() ? '\u96f2\u7aef\u767b\u51fa' : '\u96f2\u7aef\u767b\u5165';
   }
 
   function cloudResult(r, okMsg) {
@@ -569,7 +570,52 @@ W.Game = (function() {
     ].join('\n');
   }
 
+  /* 綁定用的安全包裝：某個元素或模組不存在時只記一筆錯誤，
+     不讓整個 init 中斷。手機端逐檔上傳很容易漏一支，
+     漏一支就整個白畫面是不能接受的。 */
+  /* 安全綁定：元素不存在時只記一筆警告，後面的按鈕照樣綁得上。
+     手機端逐檔上傳難免出現「新 main.js 配舊 index.html」的混搭，
+     少一顆按鈕不該讓整個遊戲起不來。 */
+  function on(id, ev, fn) {
+    var el = document.getElementById(id);
+    if (!el) {
+      if (window.__wildsErr) window.__wildsErr('\u26A0 \u627e\u4e0d\u5230\u5143\u7d20\uff1a#' + id);
+      return null;
+    }
+    el.addEventListener(ev, fn);
+    return el;
+  }
+
+  function safe(label, fn) {
+    try {
+      fn();
+    } catch (e) {
+      if (window.__wildsErr) window.__wildsErr('\u26A0 ' + label + '\uff1a' + (e && e.message ? e.message : e));
+    }
+  }
+
   function init() {
+    try {
+      initInner();
+    } catch (e) {
+      if (window.__wildsErr) {
+        window.__wildsErr('\u2717 \u521d\u59cb\u5316\u4e2d\u65b7\uff1a' + (e && e.message ? e.message : e));
+      }
+      /* 即使初始化出錯，也要把畫面跑起來，至少能看見世界與錯誤訊息 */
+      try {
+        if (!canvas) canvas = document.getElementById('game');
+        if (canvas && !ctx) { ctx = canvas.getContext('2d'); W.Render.init(ctx); }
+        resize();
+        W.Camera.snapTo(W.Player.wx, W.Player.wy);
+        last = performance.now();
+        requestAnimationFrame(loop);
+      } catch (e2) {
+        if (window.__wildsErr) window.__wildsErr('\u2717 \u7121\u6cd5\u555f\u52d5\uff1a' + (e2 && e2.message ? e2.message : e2));
+      }
+    }
+  }
+
+  function initInner() {
     canvas = document.getElementById('game');
     ctx = canvas.getContext('2d');
     elPos   = document.getElementById('hud-pos');
@@ -592,27 +638,27 @@ W.Game = (function() {
       setTimeout(resize, 200);
     });
 
-    document.getElementById('btn-a').addEventListener('pointerdown', function(e) { e.preventDefault(); doAction(); });
+    on('btn-a', 'pointerdown', function(e) { e.preventDefault(); doAction(); });
 
-    document.getElementById('btn-eat-berry').addEventListener('click', function() {
+    on('btn-eat-berry', 'click', function() {
       eat('berry', W.CFG.EAT_BERRY_FOOD, 0);
     });
 
-    document.getElementById('btn-eat-meat').addEventListener('click', function() {
+    on('btn-eat-meat', 'click', function() {
       eat('meat', W.CFG.EAT_MEAT_FOOD, W.CFG.EAT_MEAT_HP);
     });
 
-    document.getElementById('btn-b').addEventListener('pointerdown', function(e) {
+    on('btn-b', 'pointerdown', function(e) {
       e.preventDefault();
       var on = W.Minimap.toggle();
       showToast('\u5c0f\u5730\u5716\uff1a' + (on ? '\u958b\u555f' : '\u95dc\u9589'));
     });
 
-    document.getElementById('btn-c').addEventListener('pointerdown', function(e) { e.preventDefault(); openBag(); });
+    on('btn-c', 'pointerdown', function(e) { e.preventDefault(); openBag(); });
 
-    document.getElementById('btn-d').addEventListener('pointerdown', function(e) { e.preventDefault(); openCraft(); });
+    on('btn-d', 'pointerdown', function(e) { e.preventDefault(); openCraft(); });
 
-    document.getElementById('gc-close').addEventListener('click', function() {
+    on('gc-close', 'click', function() {
       document.getElementById('goal-card').classList.remove('open');
       try { window.localStorage.setItem('wilds:goalSeen', '1'); } catch (e) {}
     });
@@ -632,13 +678,14 @@ W.Game = (function() {
       }
     }, true);
 
-    document.getElementById('sm-move').addEventListener('click', beginMove);
-    document.getElementById('sm-store').addEventListener('click', storeStruct);
-    document.getElementById('sm-cancel').addEventListener('click', closeStructMenu);
-    document.getElementById('pb-ok').addEventListener('click', placeCarry);
-    document.getElementById('pb-cancel').addEventListener('click', cancelCarry);
+    on('sm-move', 'click', beginMove);
+    on('sm-store', 'click', storeStruct);
+    on('sm-cancel', 'click', closeStructMenu);
+    on('pb-ok', 'click', placeCarry);
+    on('pb-cancel', 'click', cancelCarry);
 
-    document.getElementById('btn-sync').addEventListener('click', function() {
+    safe('\u96f2\u7aef\u6309\u9215', function() {
+    on('btn-sync', 'click', function() {
       if (!W.FIREBASE_CONFIG) {
         showToast('\u96f2\u7aef\u672a\u8a2d\u5b9a\uff08\u9700\u586b firebase-config\uff09');
         return;
@@ -652,38 +699,41 @@ W.Game = (function() {
       }
     });
 
-    W.Cloud.setOnState(function(signedIn) {
-      var b = document.getElementById('btn-sync');
-      b.textContent = signedIn ? '\u2601\uFE0F' : '\u2601\uFE0F';
-      if (signedIn) { b.classList.add('on'); } else { b.classList.remove('on'); }
-      cloudLabel();
+    if (W.Cloud.setOnState) {
+      W.Cloud.setOnState(function(signedIn) {
+        var b = document.getElementById('btn-sync');
+        if (!b) return;
+        if (signedIn) { b.classList.add('on'); } else { b.classList.remove('on'); }
+        cloudLabel();
+      });
+    }
     });
 
-    document.getElementById('btn-mute').addEventListener('click', function() {
+    on('btn-mute', 'click', function() {
       var m = !W.Sfx.isMuted();
       W.Sfx.setMuted(m);
       this.textContent = m ? '\uD83D\uDD07' : '\uD83D\uDD0A';
     });
 
-    document.getElementById('craft-close').addEventListener('click', closeCraft);
+    on('craft-close', 'click', closeCraft);
 
-    document.getElementById('btn-sleep').addEventListener('click', doSleep);
+    on('btn-sleep', 'click', doSleep);
 
-    document.getElementById('craft-list').addEventListener('click', onCraftClick);
+    on('craft-list', 'click', onCraftClick);
 
-    document.getElementById('btn-eat-cooked').addEventListener('click', function() {
+    on('btn-eat-cooked', 'click', function() {
       eat('cooked', W.CFG.EAT_COOKED_FOOD, W.CFG.EAT_COOKED_HP);
     });
 
-    document.getElementById('btn-eat-soup').addEventListener('click', function() {
+    on('btn-eat-soup', 'click', function() {
       eat('soup', W.CFG.EAT_SOUP_FOOD, W.CFG.EAT_SOUP_HP);
     });
 
-    document.getElementById('bag-close').addEventListener('click', function() {
+    on('bag-close', 'click', function() {
       document.getElementById('bag-panel').classList.remove('open');
     });
 
-    document.getElementById('btn-cloud').addEventListener('click', function() {
+    on('btn-cloud', 'click', function() {
       if (W.Cloud.isSignedIn()) {
         W.Cloud.signOut().then(function() {
           showToast('\u5df2\u767b\u51fa\u96f2\u7aef');
@@ -694,12 +744,12 @@ W.Game = (function() {
       }
     });
 
-    document.getElementById('btn-up').addEventListener('click', function() {
+    on('btn-up', 'click', function() {
       W.Save.save().then(function() { return W.Cloud.upload(); })
         .then(function(r) { cloudResult(r, '\u5df2\u4e0a\u50b3\u96f2\u7aef'); });
     });
 
-    document.getElementById('btn-down').addEventListener('click', function() {
+    on('btn-down', 'click', function() {
       W.Cloud.download(false).then(function(r) {
         if (r === 'newer-local') {
           if (!window.confirm('\u672c\u6a5f\u9032\u5ea6\u6bd4\u96f2\u7aef\u65b0\uff0c\u78ba\u5b9a\u8981\u7528\u820a\u7684\u96f2\u7aef\u5b58\u6a94\u8986\u84cb\u55ce\uff1f')) {
@@ -717,31 +767,31 @@ W.Game = (function() {
       });
     });
 
-    document.getElementById('btn-save').addEventListener('click', function() {
+    on('btn-save', 'click', function() {
       W.Save.save().then(function(r) {
         showToast(r ? '\u5df2\u5b58\u6a94 \u2713' : '\u5b58\u6a94\u5931\u6557');
       });
     });
 
-    document.getElementById('btn-load').addEventListener('click', function() {
+    on('btn-load', 'click', function() {
       W.Save.load().then(function(r) {
         if (r) { W.Camera.snapTo(W.Player.wx, W.Player.wy); }
         showToast(r ? '\u5b58\u6a94\u5df2\u8b80\u53d6 \u2713' : '\u627e\u4e0d\u5230\u5b58\u6a94');
       });
     });
 
-    document.getElementById('btn-wipe').addEventListener('click', function() {
+    on('btn-wipe', 'click', function() {
       if (!window.confirm('\u78ba\u5b9a\u8981\u6e05\u9664\u5b58\u6a94\uff1f\u80cc\u5305\u8207\u63a1\u96c6\u7d00\u9304\u6703\u6b78\u96f6\uff0c\u6b64\u52d5\u4f5c\u7121\u6cd5\u5fa9\u539f\u3002')) return;
       W.Save.wipe().then(function() {
         showToast('\u5b58\u6a94\u5df2\u6e05\u9664');
       });
     });
 
-    document.getElementById('btn-diag').addEventListener('click', function() {
+    on('btn-diag', 'click', function() {
       document.getElementById('diag-body').textContent = diagText();
       document.getElementById('diag-panel').classList.add('open');
     });
-    document.getElementById('diag-close').addEventListener('click', function() {
+    on('diag-close', 'click', function() {
       document.getElementById('diag-panel').classList.remove('open');
     });
 
@@ -754,8 +804,10 @@ W.Game = (function() {
       navigator.serviceWorker.register('./sw.js').catch(function() {});
     }
 
-    W.Cloud.init();
-    cloudLabel();
+    safe('\u96f2\u7aef\u521d\u59cb\u5316', function() {
+      W.Cloud.init();
+      cloudLabel();
+    });
 
     W.Save.open().then(function() {
       return W.Save.load();
@@ -765,7 +817,8 @@ W.Game = (function() {
       showToast(loaded ? '\u5df2\u8b80\u53d6\u5b58\u6a94' : '\u65b0\u7684\u65c5\u7a0b\u958b\u59cb');
       var seenGoal = false;
       try { seenGoal = window.localStorage.getItem('wilds:goalSeen') === '1'; } catch (e) {}
-      if (!seenGoal) { document.getElementById('goal-card').classList.add('open'); }
+      var gc = document.getElementById('goal-card');
+      if (!seenGoal && gc) { gc.classList.add('open'); }
 
       last = performance.now();
       requestAnimationFrame(loop);
