@@ -53,6 +53,22 @@ W.Store = (function() {
     return moved;
   }
 
+  /* 讀檔時背包可能超過上限（舊存檔沒有容量概念）。
+     多出來的自動移進倉庫，玩家蓋個儲物箱就能拿回來，不會憑空消失。 */
+  function absorbOverflow() {
+    /* 搬到只剩九成，留點空間，否則讀檔後第一次採集就會「背包已滿」 */
+    var target = Math.floor(W.CFG.INV_CAP * 0.9);
+    if (W.Inv.total() <= W.CFG.INV_CAP) return 0;
+    var order = W.Inv.ORDER, moved = 0, i, id, need;
+    for (i = order.length - 1; i >= 0; i--) {
+      need = W.Inv.total() - target;
+      if (need <= 0) break;
+      id = order[i];
+      moved += deposit(id, Math.min(need, W.Inv.count(id)));
+    }
+    return moved;
+  }
+
   function ids() {
     var out = [], k;
     for (k in items) {
@@ -93,6 +109,7 @@ W.Store = (function() {
     deposit: deposit,
     withdraw: withdraw,
     depositAll: depositAll,
+    absorbOverflow: absorbOverflow,
     ids: ids,
     exportData: exportData,
     importData: importData,
