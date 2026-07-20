@@ -250,14 +250,24 @@ W.Render = (function() {
 
   function loadSprite(url) {
     var want = url || W.CFG.SPRITE_URL;
-    /* 同一張就不重複請求，避免啟動時載兩次 */
-    if (sprite && spriteUrl === want) return;
+    /* 同一張（含正在載入中的）就不重複請求，避免啟動時載兩次 */
+    if (spriteUrl === want) return;
+
+    var prevImg = sprite, prevUrl = spriteUrl, prevReady = spriteReady;
     spriteUrl = want;
-    spriteReady = false;
-    sprite = new Image();
-    sprite.onload = function() { spriteReady = true; };
-    sprite.onerror = function() { spriteReady = false; };
-    sprite.src = want;
+    var img = new Image();
+    img.onload = function() {
+      sprite = img;
+      spriteReady = true;
+    };
+    img.onerror = function() {
+      /* 換裝失敗就留在原本的角色，不要變成沒有圖的圓圈 */
+      sprite = prevImg;
+      spriteUrl = prevUrl;
+      spriteReady = prevReady;
+      if (window.__wildsErr) window.__wildsErr('\u26A0 \u89d2\u8272\u5716\u8f09\u5165\u5931\u6557\uff1a' + want);
+    };
+    img.src = want;
   }
 
   function setSprite(url) { loadSprite(url); }
