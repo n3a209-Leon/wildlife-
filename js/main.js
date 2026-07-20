@@ -114,13 +114,21 @@ W.Game = (function() {
     if (!(v >= 0 && v < W.CFG.SPRITE_LIST.length)) v = 0;
     _charIdx = v;
     W.Render.setSprite(W.CFG.SPRITE_LIST[_charIdx]);
+    charLabel();
+  }
+
+  function charLabel() {
+    var b = document.getElementById('btn-char');
+    if (!b) return;
+    b.textContent = '\u89d2\u8272\uff1a' + W.CFG.SPRITE_NAMES[_charIdx];
   }
 
   function nextChar() {
     _charIdx = (_charIdx + 1) % W.CFG.SPRITE_LIST.length;
     W.Render.setSprite(W.CFG.SPRITE_LIST[_charIdx]);
     try { window.localStorage.setItem('wilds:char', String(_charIdx)); } catch (e) {}
-    showToast(W.CFG.SPRITE_NAMES[_charIdx]);
+    charLabel();
+    showToast('\u5df2\u5207\u63db\u70ba\uff1a' + W.CFG.SPRITE_NAMES[_charIdx]);
   }
 
   function nearStore() {
@@ -179,7 +187,8 @@ W.Game = (function() {
 
   function bagHtml() {
     var ids = W.Inv.ORDER, html = '', i, id, n;
-    html += '<div class="bag-head">\u80cc\u5305\uff08' + W.Inv.total() + ' / ' + W.Inv.cap() + '\uff09</div>';
+    html += '<div class="bag-head">\u80cc\u5305\uff08' + W.Inv.total() + ' / ' + W.Inv.cap() + '\uff09'
+         + (W.Inv.isFull() ? ' <span style="color:#ff9a8a">\u5df2\u6eff</span>' : '') + '</div>';
     for (i = 0; i < ids.length; i++) {
       id = ids[i];
       n = W.Inv.count(id);
@@ -977,6 +986,10 @@ W.Game = (function() {
     }).then(function(loaded) {
       if (!loaded) W.Player.spawn();
       W.Camera.snapTo(W.Player.wx, W.Player.wy);
+      var ov = W.Save.info().overflow || 0;
+      if (ov > 0) {
+        showToast('\u80cc\u5305\u8d85\u91cd\uff0c' + ov + ' \u4ef6\u5df2\u79fb\u5165\u5132\u7269\u7bb1\uff08\u84cb\u4e00\u500b\u5c31\u80fd\u53d6\u56de\uff09');
+      }
       showToast(loaded ? '\u5df2\u8b80\u53d6\u5b58\u6a94' : '\u65b0\u7684\u65c5\u7a0b\u958b\u59cb');
       var seenGoal = false;
       try { seenGoal = window.localStorage.getItem('wilds:goalSeen') === '1'; } catch (e) {}
