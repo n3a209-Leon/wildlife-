@@ -14,7 +14,7 @@ W.Art = (function() {
     'wall', 'chest', 'chest_open', 'ruin', 'cave', 'crate', 'fence', 'rack',
     'ui/mushroom', 'ui/furnace', 'ui/flint', 'ui/meat', 'ui/cooked',
     'ui/hide', 'ui/arrow', 'ui/metal', 'ui/soup', 'ui/jerky',
-    'ui/wood', 'ui/stone', 'ui/fiber', 'ui/berry', 'ui/axe', 'ui/pick', 'ui/basket'
+    'ui/wood', 'ui/stone', 'ui/fiber', 'ui/berry', 'ui/axe', 'ui/pick'
   ];
 
   var imgs = {};
