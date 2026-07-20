@@ -181,6 +181,128 @@ W.Render = (function() {
     }
   }
 
+  /* 夥伴與魔王：素材還沒到，先用色圈＋名牌占位，
+     圖檔一旦加入 art.js 的清單就會自動改用圖片。 */
+  function drawMates() {
+    if (!W.Mates) return;
+    var i, m, img, z, r, h, cg, ch;
+    z = W.Camera.zoom;
+    for (i = 0; i < W.Mates.count(); i++) {
+      m = W.Mates.at(i);
+      if (!m.recruited && !m.homeSite) continue;
+      W.Camera.worldToScreenInto(m.wx, m.wy, _p);
+      if (_p.sx < -80 || _p.sx > W.Camera.vw + 80 || _p.sy < -80 || _p.sy > W.Camera.vh + 80) continue;
+
+      img = W.Art.get(m.moving ? (m.def.art + '_walk') : m.def.art);
+      r = 12 * z;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(_p.sx, _p.sy + r * 0.6, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (img) {
+        h = 52 * z;
+        if (m.faceX < 0) {
+          ctx.save();
+          ctx.translate(_p.sx, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, -h / 2, _p.sy + r * 0.6 - h, h, h);
+          ctx.restore();
+        } else {
+          ctx.drawImage(img, _p.sx - h / 2, _p.sy + r * 0.6 - h, h, h);
+        }
+      } else {
+        ctx.fillStyle = m.def.color;
+        ctx.beginPath();
+        ctx.arc(_p.sx, _p.sy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#2a2419';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = 'bold ' + Math.round(11 * z) + 'px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.lineWidth = 3;
+        ctx.strokeText(m.def.name, _p.sx, _p.sy - 16 * z);
+        ctx.fillStyle = '#f0f4e6';
+        ctx.fillText(m.def.name, _p.sx, _p.sy - 16 * z);
+      }
+
+      if (m.recruited && m.hungry) {
+        ctx.font = Math.round(13 * z) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('\uD83C\uDF56', _p.sx, _p.sy - 30 * z);
+      }
+
+      if (!m.recruited && m.def.strong) {
+        cg = W.Art.get('cage');
+        if (cg) {
+          ch = 60 * z;
+          ctx.drawImage(cg, _p.sx - ch / 2, _p.sy + r * 0.6 - ch, ch, ch);
+        } else {
+          ctx.strokeStyle = '#8a7a5a';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(_p.sx - 16 * z, _p.sy - 26 * z, 32 * z, 34 * z);
+          ctx.beginPath();
+          ctx.moveTo(_p.sx - 8 * z, _p.sy - 26 * z); ctx.lineTo(_p.sx - 8 * z, _p.sy + 8 * z);
+          ctx.moveTo(_p.sx, _p.sy - 26 * z); ctx.lineTo(_p.sx, _p.sy + 8 * z);
+          ctx.moveTo(_p.sx + 8 * z, _p.sy - 26 * z); ctx.lineTo(_p.sx + 8 * z, _p.sy + 8 * z);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function drawBosses() {
+    if (!W.Bosses) return;
+    var i, b, img, z, r, h, w;
+    z = W.Camera.zoom;
+    for (i = 0; i < W.Bosses.count(); i++) {
+      b = W.Bosses.at(i);
+      if (!b.alive) continue;
+      W.Camera.worldToScreenInto(b.wx, b.wy, _p);
+      if (_p.sx < -120 || _p.sx > W.Camera.vw + 120 || _p.sy < -120 || _p.sy > W.Camera.vh + 120) continue;
+
+      img = W.Art.get(b.def.art);
+      r = 26 * z;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(_p.sx, _p.sy + r * 0.6, r, r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (img) {
+        h = 96 * z;
+        ctx.drawImage(img, _p.sx - h / 2, _p.sy + r * 0.6 - h, h, h);
+      } else {
+        ctx.fillStyle = (b.hurt > 0) ? '#e06050' : b.def.color;
+        ctx.beginPath();
+        ctx.arc(_p.sx, _p.sy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#1e1a14';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      w = 60 * z;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(_p.sx - w / 2, _p.sy - 44 * z, w, 6 * z);
+      ctx.fillStyle = '#d85a4a';
+      ctx.fillRect(_p.sx - w / 2, _p.sy - 44 * z, w * Math.max(0, b.hp / b.def.hp), 6 * z);
+
+      ctx.font = 'bold ' + Math.round(12 * z) + 'px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(b.def.name, _p.sx, _p.sy - 50 * z);
+      ctx.fillStyle = '#ffb0a0';
+      ctx.fillText(b.def.name, _p.sx, _p.sy - 50 * z);
+    }
+  }
+
   function drawCarryGhost() {
     if (!W.Game || !W.Game.carryGhost) return;
     var ty = W.Game.carryGhost(_cg);
@@ -867,6 +989,8 @@ W.Render = (function() {
     drawBuilds(true);
     drawNodes(true);
     drawMobs(true);
+    drawBosses();
+    drawMates();
     W.Arrows.each(drawArrow);
     drawPlayer(dt);
     drawSlash(dt);
