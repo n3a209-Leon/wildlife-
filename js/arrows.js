@@ -52,6 +52,7 @@ W.Arrows = (function() {
       a.wy += a.vy * dt;
 
       hit = W.Mobs.hitAt(a.wx, a.wy, 22, W.CFG.ARROW_DMG);
+      if (!hit && W.Bosses) hit = W.Bosses.hitAt(a.wx, a.wy, 22, W.CFG.ARROW_DMG);
       if (hit) {
         a.on = false;
         a.tgt = null;
