@@ -16,6 +16,7 @@ W.Save = (function() {
   var reason = '\u5c1a\u672a\u521d\u59cb\u5316';
   var lastSaved = 0;
   var lastError = '';
+  var lastOverflow = 0;
   var autoT = 0;
 
   function open() {
@@ -144,6 +145,7 @@ W.Save = (function() {
     W.Time.importData(data.time);
     W.Sites.importData(data.sites);
     W.Store.importData(data.store);
+    lastOverflow = W.Store.absorbOverflow();
     if (data.home && isFinite(data.home.wx) && isFinite(data.home.wy)) {
       W.Player.homeWx = data.home.wx;
       W.Player.homeWy = data.home.wy;
@@ -279,7 +281,8 @@ W.Save = (function() {
       reason: reason,
       lastSaved: lastSaved,
       lastError: lastError,
-      version: VERSION
+      version: VERSION,
+      overflow: lastOverflow
     };
   }
 
