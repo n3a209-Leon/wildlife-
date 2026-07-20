@@ -9,7 +9,7 @@ W.Save = (function() {
   var DB_NAME = 'wilds';
   var STORE = 'kv';
   var KEY = 'save';
-  var VERSION = 6;
+  var VERSION = 7;
 
   var db = null;
   var ok = false;
@@ -120,7 +120,9 @@ W.Save = (function() {
       builds: W.Build.exportData(),
       time: W.Time.exportData(),
       sites: W.Sites.exportData(),
-      store: W.Store.exportData()
+      store: W.Store.exportData(),
+      mates: W.Mates.exportData(),
+      bosses: W.Bosses.exportData()
     };
   }
 
@@ -144,6 +146,9 @@ W.Save = (function() {
     W.Build.importData(data.builds);
     W.Time.importData(data.time);
     W.Sites.importData(data.sites);
+    /* 順序不可調換：夥伴的招募判定依賴魔王是否已被擊敗 */
+    W.Bosses.importData(data.bosses);
+    W.Mates.importData(data.mates);
     W.Store.importData(data.store);
     lastOverflow = W.Store.absorbOverflow();
     if (data.home && isFinite(data.home.wx) && isFinite(data.home.wy)) {
@@ -203,6 +208,14 @@ W.Save = (function() {
       v = 6;
     }
 
+    if (v === 6) {
+      /* v6 沒有夥伴與魔王紀錄，視為一位都沒招募、魔王都還在 */
+      if (!data.mates) data.mates = {};
+      if (!data.bosses) data.bosses = {};
+      data.v = 7;
+      v = 7;
+    }
+
     /* 種子不同代表是另一個世界，座標與採集狀態不可沿用，只保留背包 */
     if (data.seed !== W.CFG.SEED) {
       data.player = null;
@@ -211,6 +224,8 @@ W.Save = (function() {
       data.builds = [];
       data.sites = [];
       data.store = {};
+      data.mates = {};
+      data.bosses = {};
     }
 
     if (v > VERSION) return null;
@@ -263,6 +278,8 @@ W.Save = (function() {
     W.Time.clear();
     W.Sites.clear();
     W.Store.clear();
+    W.Bosses.clear();
+    W.Mates.clear();
     lastSaved = 0;
     return remove();
   }
