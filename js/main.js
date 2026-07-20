@@ -8,7 +8,7 @@ W.Game = (function() {
   var hudTimer = 0;
   var frame = 0;
   var elToast, toastT = 0;
-  var elHp, elFood, elStam, elSan, elTime;
+  var elHp, elFood, elStam, elSan, elTime, elMates;
   var deadT = 0;
   var craftOpen = false;
 
@@ -35,6 +35,12 @@ W.Game = (function() {
     elFood.style.width = (W.Stats.foodPct() * 100).toFixed(0) + '%';
     elStam.style.width = (W.Stats.stamPct() * 100).toFixed(0) + '%';
     if (elSan) elSan.style.width = (W.Stats.sanPct() * 100).toFixed(0) + '%';
+    if (elMates) {
+      elMates.textContent = (W.Mates && W.Mates.recruitedCount() > 0)
+        ? ('\uD83D\uDC65 \u5925\u4f34 ' + W.Mates.recruitedCount() + '/' + W.Mates.count()
+           + (W.Mates.stats().hungry ? '\uff08\u9913\u4e86 ' + W.Mates.stats().hungry + '\uff09' : ''))
+        : '';
+    }
     elTime.textContent = '\u7b2c ' + W.Time.dayNo() + ' \u5929 ' + W.Time.clock() + ' \u00b7 ' + W.Time.phase();
   }
 
@@ -216,6 +222,18 @@ W.Game = (function() {
   var _nearMob = null;
 
   /* 一次迴圈同時得到最近距離與最近目標，不跑兩趟 */
+  /* 弓箭的目標包含魔王：魔王物件有 alive / wx / wy，與生物相容 */
+  function nearestTargetDist() {
+    var P = W.Player;
+    var d = nearestMobDist();
+    var b = W.Bosses ? W.Bosses.nearest(P.wx, P.wy) : null;
+    if (b) {
+      var bd = Math.sqrt((b.wx - P.wx) * (b.wx - P.wx) + (b.wy - P.wy) * (b.wy - P.wy));
+      if (bd < d) { _nearMob = b; return bd; }
+    }
+    return d;
+  }
+
   function nearestMobDist() {
     var P = W.Player, best = 1e9;
     var i, m, dx, dy, d2, n = W.Mobs.count();
@@ -267,7 +285,7 @@ W.Game = (function() {
       return;
     }
 
-    var nm = nearestMobDist();
+    var nm = nearestTargetDist();
     if (nm <= W.CFG.ATTACK_RANGE) {
       mode = 'atk';
       icon = '\u2694\uFE0F';
@@ -321,7 +339,7 @@ W.Game = (function() {
       return;
     }
 
-    var nm = nearestMobDist();
+    var nm = nearestTargetDist();
     if (canBow(nm)) {
       if (_bowCd <= 0) {
         var tgt = nearestMob();
@@ -342,6 +360,11 @@ W.Game = (function() {
     /* 揮空也要出弧光，這是手感的關鍵 */
     W.Render.slash(W.Player.faceX, W.Player.faceY);
     var a = W.Player.attack();
+    if (!a && W.Bosses) {
+      a = W.Bosses.hitAt(W.Player.wx + W.Player.faceX * 40,
+                         W.Player.wy + W.Player.faceY * 40,
+                         W.CFG.ATTACK_RANGE, W.CFG.ATTACK_DMG + W.Craft.attackBonus());
+    }
     if (a === 'tired') { showToast('\u9ad4\u529b\u4e0d\u8db3'); return; }
     if (a) {
       W.Render.dmgText(W.Player.wx + W.Player.faceX * 40, W.Player.wy + W.Player.faceY * 40 - 14, '-' + a.dmg);
@@ -581,6 +604,8 @@ W.Game = (function() {
     W.Mobs.update(dt);
     W.Arrows.update(dt);
     if (W.Sites) W.Sites.updateNear(W.Player.wx, W.Player.wy);
+    if (W.Bosses) W.Bosses.update(dt);
+    if (W.Mates) W.Mates.update(dt);
     if (_bowCd > 0) _bowCd -= dt;
     checkDeath(dt);
     W.World.tick(frame);
@@ -609,6 +634,8 @@ W.Game = (function() {
     var cl = W.Cloud.info();
     var ar = W.Art.stats();
     var ss = W.Sites ? W.Sites.stats() : { near: 0, looted: 0 };
+    var mt = W.Mates ? W.Mates.stats() : { total: 0, recruited: 0, hungry: 0 };
+    var bs2 = W.Bosses ? W.Bosses.stats() : { alive: 0, defeated: 0 };
     return [
       '=== WILDS 診斷 (Phase 1) ===',
       '',
@@ -681,6 +708,8 @@ W.Game = (function() {
       '\u80cc\u5305         : ' + W.Inv.total() + ' / ' + W.Inv.cap(),
       '\u5132\u7269\u7bb1     : ' + W.Store.total() + ' / ' + W.CFG.STORE_CAP,
       '\u9670\u5f71\u6578\u91cf     : ' + (ms.shadows || 0),
+      '\u5925\u4f34         : ' + mt.recruited + ' / ' + mt.total + '\uff08\u9913 ' + mt.hungry + '\uff09',
+      '\u9b54\u738b         : \u5b58\u6d3b ' + bs2.alive + '\u3001\u5df2\u64ca\u6557 ' + bs2.defeated,
       '\u9130\u8fd1\u907a\u8de1     : ' + ss.near + '\uff08\u5df2\u641c\u5237 ' + ss.looted + ' \u5ea7\uff09',
       '',
       '--- \u96f2\u7aef (Phase 8) ---',
@@ -731,7 +760,8 @@ W.Game = (function() {
     ['Input', 'input.js'], ['Player', 'player.js'], ['Render', 'render.js'],
     ['Save', 'save.js'], ['Stats', 'stats.js'], ['Mobs', 'mobs.js'],
     ['Arrows', 'arrows.js'], ['Minimap', 'minimap.js'], ['Art', 'art.js'],
-    ['Cloud', 'cloud.js'], ['Sfx', 'sfx.js'], ['Sites', 'sites.js'], ['Store', 'store.js']
+    ['Cloud', 'cloud.js'], ['Sfx', 'sfx.js'], ['Sites', 'sites.js'], ['Store', 'store.js'],
+    ['Mates', 'companions.js'], ['Bosses', 'bosses.js']
   ];
 
   function checkModules() {
@@ -780,6 +810,7 @@ W.Game = (function() {
     elStam  = document.getElementById('bar-stam');
     elSan   = document.getElementById('bar-san');
     elTime  = document.getElementById('hud-time');
+    elMates = document.getElementById('hud-mates');
 
     W.Render.init(ctx);
     loadCharPref();
@@ -976,6 +1007,27 @@ W.Game = (function() {
       navigator.serviceWorker.register('./sw.js').catch(function() {});
     }
 
+    safe('\u5925\u4f34\u521d\u59cb\u5316', function() {
+      W.Mates.init();
+      W.Bosses.init();
+    });
+
+    W.Game.onMateJoin = function(def) {
+      showToast('\uD83C\uDF89 ' + def.name + ' \u52a0\u5165\u968a\u4f0d\uff01');
+      if (W.Sfx) W.Sfx.kill();
+    };
+    W.Game.onMateHit = function(m, hit) {
+      W.Render.dmgText(hit.wx || m.wx, (hit.wy || m.wy) - 10, '-' + hit.dmg);
+    };
+    W.Game.onBossDown = function(b) {
+      showToast('\uD83C\uDFC6 \u64ca\u6557 ' + b.def.name + '\uff01\u7262\u7c60\u958b\u4e86');
+      if (W.Sfx) W.Sfx.kill();
+      W.Save.save();
+    };
+    W.Game.onBossHitPlayer = function() {
+      if (W.Sfx) W.Sfx.hurt();
+    };
+
     safe('\u96f2\u7aef\u521d\u59cb\u5316', function() {
       W.Cloud.init();
       cloudLabel();
@@ -986,6 +1038,7 @@ W.Game = (function() {
     }).then(function(loaded) {
       if (!loaded) W.Player.spawn();
       W.Camera.snapTo(W.Player.wx, W.Player.wy);
+      if (W.Bosses) W.Bosses.init();
       var ov = W.Save.info().overflow || 0;
       if (ov > 0) {
         showToast('\u80cc\u5305\u8d85\u91cd\uff0c' + ov + ' \u4ef6\u5df2\u79fb\u5165\u5132\u7269\u7bb1\uff08\u84cb\u4e00\u500b\u5c31\u80fd\u53d6\u56de\uff09');
