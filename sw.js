@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'wilds-v23';
+var CACHE_VERSION = 'wilds-v24';
 
 var ASSETS = [
   './index.html',
@@ -16,6 +16,8 @@ var ASSETS = [
   './js/mobs.js',
   './js/build.js',
   './js/sites.js',
+  './js/companions.js',
+  './js/bosses.js',
   './js/craft.js',
   './js/time.js',
   './js/firebase-config.js',
