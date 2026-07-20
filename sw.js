@@ -1,4 +1,4 @@
-var CACHE_VERSION = 'wilds-v20';
+var CACHE_VERSION = 'wilds-v22';
 
 var ASSETS = [
   './index.html',
@@ -50,7 +50,6 @@ var ASSETS = [
   './assets/icon-512.png',
   './assets/apple-touch-icon.png',
   './assets/ui/axe.png',
-  './assets/ui/basket.png',
   './assets/ui/berry.png',
   './assets/ui/campfire.png',
   './assets/ui/fiber.png',
